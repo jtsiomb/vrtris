@@ -15,13 +15,12 @@ struct game_screen {
 
 	void (*update)(float dt);
 	void (*draw)(void);
+
 	void (*reshape)(int, int);
-	/* these functions return 1 if they handled the event, or 0
-	 * if it should propagate to the next screen in the stack */
-	int (*keyboard)(int, int);
-	int (*mouse)(int, int, int, int);
-	int (*motion)(int, int);
-	int (*wheel)(int dir);
+	void (*keyboard)(int, int);
+	void (*mouse)(int, int, int, int);
+	void (*motion)(int, int);
+	void (*wheel)(int dir);
 };
 
 /* this always points to the top screen on the stack

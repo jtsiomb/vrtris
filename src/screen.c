@@ -1,4 +1,10 @@
+#include <string.h>
 #include "screen.h"
+#include "opt.h"
+
+/* defined in their respective screen source files */
+struct game_screen main_menu_screen;
+struct game_screen game_screen;
 
 static struct game_screen *screens[16];
 static int num_screens;
@@ -7,11 +13,21 @@ static struct game_screen *stack;
 
 int init_screens(void)
 {
-	int i;
+	int i = 0;
+
+	/* populate the screens */
+	screens[i++] = &main_menu_screen;
+	screens[i++] = &game_screen;
+	num_screens = i;
+
+	stack = screens[0];
 
 	for(i=0; i<num_screens; i++) {
 		if(screens[i]->init() == -1) {
 			return -1;
+		}
+		if(opt.start_scr && strcmp(screens[i]->name, opt.start_scr) == 0) {
+			stack = screens[i];
 		}
 	}
 	return 0;

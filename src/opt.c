@@ -5,13 +5,14 @@
 #include "opt.h"
 
 
-struct options def_opt = { 1024, 768, 0 };
+struct options def_opt = { 1024, 768, 0, "game" };
 
 enum {
 	OPTCFG_SIZE,
 	OPTCFG_VR,
 	OPTCFG_FULLSCREEN,
 	OPTCFG_WINDOWED,
+	OPTCFG_SCREEN,
 	OPTCFG_HELP
 };
 
@@ -21,6 +22,7 @@ static struct optcfg_option options[] = {
 	{0, "vr", OPTCFG_VR, "enable VR mode"},
 	{'f', "fullscreen", OPTCFG_FULLSCREEN, "run in fullscreen mode"},
 	{'w', "windowed", OPTCFG_WINDOWED, "run in windowed mode"},
+	{0, "screen", OPTCFG_SCREEN, "select starting screen"},
 	{'h', "help", OPTCFG_HELP, "print usage and exit"},
 	OPTCFG_OPTIONS_END
 };
@@ -66,14 +68,14 @@ static int is_enabled(struct optcfg *oc)
 
 static int opt_handler(struct optcfg *oc, int optid, void *cls)
 {
+	char *valstr;
+
 	switch(optid) {
 	case OPTCFG_SIZE:
-		{
-			char *valstr = optcfg_next_value(oc);
-			if(!valstr || sscanf(valstr, "%dx%d", &opt.width, &opt.height) != 2) {
-				fprintf(stderr, "size must be in the form: WIDTHxHEIGHT\n");
-				return -1;
-			}
+		valstr = optcfg_next_value(oc);
+		if(!valstr || sscanf(valstr, "%dx%d", &opt.width, &opt.height) != 2) {
+			fprintf(stderr, "size must be of the form: WIDTHxHEIGHT\n");
+			return -1;
 		}
 		break;
 
@@ -99,6 +101,19 @@ static int opt_handler(struct optcfg *oc, int optid, void *cls)
 		} else {
 			opt.flags |= OPT_FULLSCREEN;
 		}
+		break;
+
+	case OPTCFG_SCREEN:
+		if(!(valstr = optcfg_next_value(oc))) {
+			fprintf(stderr, "screen name missing\n");
+			return -1;
+		}
+		free(opt.start_scr);
+		if(!(opt.start_scr = malloc(strlen(valstr) + 1))) {
+			perror("failed to allocate memory");
+			return -1;
+		}
+		strcpy(opt.start_scr, valstr);
 		break;
 
 	case OPTCFG_HELP:

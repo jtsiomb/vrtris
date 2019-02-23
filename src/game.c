@@ -7,6 +7,8 @@
 #include "osd.h"
 #include "opt.h"
 
+#define DEFSCR	"game"
+
 static void calc_framerate(void);
 static void print_framerate(void);
 
@@ -37,6 +39,7 @@ int game_init(int argc, char **argv)
 		goatvr_startvr();
 		should_swap = goatvr_should_swap();
 	}
+
 	return 0;
 }
 
