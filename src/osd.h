@@ -16,6 +16,6 @@ void show_messagev(long timeout, float r, float g, float b, const char *fmt, va_
 void print_text(float x, float y, float r, float g, float b, const char *fmt, ...);
 void print_textv(float x, float y, float r, float g, float b, const char *fmt, va_list ap);
 
-void draw_ui(void);
+void draw_osd(void);
 
 #endif	/* OSD_H_ */

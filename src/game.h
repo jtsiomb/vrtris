@@ -58,28 +58,27 @@ enum {
 };
 
 int game_init(int argc, char **argv);
-void game_cleanup();
+void game_cleanup(void);
 
-void game_display();
+void game_display(void);
 void game_reshape(int x, int y);
 
 void game_keyboard(int key, int pressed);
 void game_mouse_button(int bn, int pressed, int x, int y);
 void game_mouse_motion(int x, int y);
-void game_mouse_delta(int dx, int dy);
 void game_mouse_wheel(int dir);
 
 void game_gamepad_axis(int axis, float val);
 void game_gamepad_button(int bn, int pressed);
 
 /* the following functions are implemented by the backend (main.c) */
-void game_quit();
-void game_swap_buffers();
-unsigned int game_get_modifiers();
+void game_quit(void);
+void game_swap_buffers(void);
+unsigned int game_get_modifiers(void);
 
 void game_resize(int x, int y);
 void game_fullscreen(int fs);
-void game_toggle_fullscreen();
-int game_is_fullscreen();
+void game_toggle_fullscreen(void);
+int game_is_fullscreen(void);
 
 #endif	// GAME_H_

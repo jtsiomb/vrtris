@@ -128,7 +128,7 @@ void print_textv(float x, float y, float r, float g, float b, const char *fmt, v
 	txlist = tx;
 }
 
-void draw_ui()
+void draw_osd(void)
 {
 	if(!ui_font) return;
 
@@ -191,7 +191,7 @@ void draw_ui()
 	glPopMatrix();
 }
 
-static int init()
+static int init(void)
 {
 	static int done_init;
 	if(done_init) return 0;

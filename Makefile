@@ -5,7 +5,8 @@ bin = vrtris
 
 
 CFLAGS = -pedantic -Wall -g `pkg-config --cflags sdl2`
-LDFLAGS = $(libsys) $(libgl) `pkg-config --libs sdl2` -ldrawtext
+LDFLAGS = $(libsys) $(libgl) `pkg-config --libs sdl2` -ldrawtext -lgoatvr \
+		  -limago -lm
 
 sys ?= $(shell uname -s | sed 's/MINGW.*/mingw/')
 
