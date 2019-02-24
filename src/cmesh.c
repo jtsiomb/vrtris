@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #include "opengl.h"
 #include "cmesh.h"
 
@@ -96,10 +97,10 @@ int cmesh_init(struct cmesh *cm)
 			cmesh_destroy(cm);
 			return -1;
 		}
-		cm->vattr[i].vbo = buffer_objects[i];
+		cm->vattr[i].vbo = cm->buffer_objects[i];
 	}
 
-	cm->ibo = buffer_objects[CMESH_NUM_ATTR];
+	cm->ibo = cm->buffer_objects[CMESH_NUM_ATTR];
 	if(!(cm->idata = dynarr_alloc(0, sizeof *cm->idata))) {
 		cmesh_destroy(cm);
 		return -1;
@@ -190,7 +191,7 @@ int cmesh_clone(struct cmesh *cmdest, struct cmesh *cmsrc)
 			cmesh_attrib(cmsrc, i);	/* force validation of the actual data on the source mesh */
 
 			nelem = cmsrc->vattr[i].nelem;
-			cmdest->vattr[i].nelem = nelem
+			cmdest->vattr[i].nelem = nelem;
 			num = dynarr_size(cmsrc->vattr[i].data);
 			cmdest->vattr[i].data = varr[i];
 			memcpy(cmdest->vattr[i].data, cmsrc->vattr[i].data, num * nelem * sizeof(float));
@@ -279,7 +280,7 @@ float *cmesh_set_attrib(struct cmesh *cm, int attr, int nelem, unsigned int num,
 	if(!(newarr = dynarr_alloc(num * nelem, sizeof *newarr))) {
 		return 0;
 	}
-	if(data) {
+	if(vdata) {
 		memcpy(newarr, vdata, num * nelem * sizeof *newarr);
 	}
 
@@ -326,7 +327,7 @@ const float *cmesh_attrib_ro(struct cmesh *cm, int attr)
 		}
 		cm->vattr[attr].data = tmp;
 
-		glBindBuffer(GL_ARRAY_BUFFER, vattr[attr].vbo);
+		glBindBuffer(GL_ARRAY_BUFFER, cm->vattr[attr].vbo);
 		tmp = glMapBuffer(GL_ARRAY_BUFFER, GL_READ_ONLY);
 		memcpy(cm->vattr[attr].data, tmp, cm->nverts * nelem * sizeof(float));
 		glUnmapBuffer(GL_ARRAY_BUFFER);
@@ -335,6 +336,18 @@ const float *cmesh_attrib_ro(struct cmesh *cm, int attr)
 #endif
 	}
 	return cm->vattr[attr].data;
+}
+
+float *cmesh_attrib_at(struct cmesh *cm, int attr, int idx)
+{
+	float *vptr = cmesh_attrib(cm, attr);
+	return vptr ? vptr + idx * cm->vattr[attr].nelem : 0;
+}
+
+const float *cmesh_attrib_at_ro(struct cmesh *cm, int attr, int idx)
+{
+	const float *vptr = cmesh_attrib_ro(cm, attr);
+	return vptr ? vptr + idx * cm->vattr[attr].nelem : 0;
 }
 
 int cmesh_attrib_count(struct cmesh *cm, int attr)
@@ -401,6 +414,7 @@ const unsigned int *cmesh_index_ro(struct cmesh *cm)
 		glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
 
 		cm->idata_valid = 1;
+#endif
 	}
 	return cm->idata;
 }
@@ -446,7 +460,7 @@ void cmesh_invalidate_index(struct cmesh *cm)
 
 int cmesh_append(struct cmesh *cmdest, struct cmesh *cmsrc)
 {
-	int i, nelem, nidx, newsz, origsz;
+	int i, nelem, newsz, origsz, srcsz;
 	float *vptr;
 	unsigned int *iptr;
 	unsigned int idxoffs;
@@ -456,10 +470,10 @@ int cmesh_append(struct cmesh *cmdest, struct cmesh *cmsrc)
 	}
 
 	for(i=0; i<CMESH_NUM_ATTR; i++) {
-		if(cmesh_has_attrib(cmdest) && cmesh_has_attrib(cmsrc)) {
+		if(cmesh_has_attrib(cmdest, i) && cmesh_has_attrib(cmsrc, i)) {
 			/* force validation of the data arrays */
 			cmesh_attrib(cmdest, i);
-			cmesh_attrib_ro(cmsrc, id);
+			cmesh_attrib_ro(cmsrc, i);
 
 			assert(cmdest->vattr[i].nelem == cmsrc->vattr[i].nelem);
 			nelem = cmdest->vattr[i].nelem;
@@ -480,7 +494,7 @@ int cmesh_append(struct cmesh *cmdest, struct cmesh *cmsrc)
 		cmesh_index(cmdest);
 		cmesh_index_ro(cmsrc);
 
-		idxoff = cmdest->nverts;
+		idxoffs = cmdest->nverts;
 		origsz = dynarr_size(cmdest->idata);
 		srcsz = dynarr_size(cmsrc->idata);
 		newsz = origsz + srcsz;
@@ -500,6 +514,7 @@ int cmesh_append(struct cmesh *cmdest, struct cmesh *cmsrc)
 	cmdest->wire_ibo_valid = 0;
 	cmdest->aabb_valid = 0;
 	cmdest->bsph_valid = 0;
+	return 0;
 }
 
 /* assemble a complete vertex by adding all the useful attributes */
@@ -514,7 +529,7 @@ int cmesh_vertex(struct cmesh *cm, float x, float y, float z)
 	for(i=0; i<CMESH_ATTR_VERTEX; i++) {
 		if(cm->vattr[i].data_valid) {
 			for(j=0; j<cm->vattr[CMESH_ATTR_VERTEX].nelem; j++) {
-				float *tmp = dynarr_push(cm->vattr[i].data, cur_val[i] + j);
+				float *tmp = dynarr_push(cm->vattr[i].data, &cm->cur_val[i].x + j);
 				if(!tmp) return -1;
 				cm->vattr[i].data = tmp;
 			}
@@ -560,12 +575,87 @@ void cmesh_boneidx(struct cmesh *cm, int idx1, int idx2, int idx3, int idx4)
 	cm->vattr[CMESH_ATTR_BONEIDX].nelem = 4;
 }
 
-/* dir_xform can be null, in which case it's calculated from xform */
-void cmesh_apply_xform(struct cmesh *cm, float *xform, float *dir_xform);
+static float *get_vec4(struct cmesh *cm, int attr, int idx, cgm_vec4 *res)
+{
+	int i;
+	float *sptr, *dptr;
+	cgm_wcons(res, 0, 0, 0, 1);
+	if(!(sptr = cmesh_attrib_at(cm, attr, idx))) {
+		return 0;
+	}
+	dptr = &res->x;
 
-void cmesh_flip(struct cmesh *cm);	/* flip faces (winding) and normals */
-void cmesh_flip_faces(struct cmesh *cm);
-void cmesh_flip_normals(struct cmesh *cm);
+	for(i=0; i<cm->vattr[attr].nelem; i++) {
+		*dptr++ = sptr[i];
+	}
+	return sptr;
+}
+
+static float *get_vec3(struct cmesh *cm, int attr, int idx, cgm_vec3 *res)
+{
+	int i;
+	float *sptr, *dptr;
+	cgm_vcons(res, 0, 0, 0);
+	if(!(sptr = cmesh_attrib_at(cm, attr, idx))) {
+		return 0;
+	}
+	dptr = &res->x;
+
+	for(i=0; i<cm->vattr[attr].nelem; i++) {
+		*dptr++ = sptr[i];
+	}
+	return sptr;
+}
+
+/* dir_xform can be null, in which case it's calculated from xform */
+void cmesh_apply_xform(struct cmesh *cm, float *xform, float *dir_xform)
+{
+	unsigned int i;
+	int j;
+	cgm_vec4 v;
+	cgm_vec3 n, t;
+	float *vptr;
+
+	for(i=0; i<cm->nverts; i++) {
+		if(!(vptr = get_vec4(cm, CMESH_ATTR_VERTEX, i, &v))) {
+			return;
+		}
+		cgm_wmul_m4v4(&v, xform);
+		for(j=0; j<cm->vattr[CMESH_ATTR_VERTEX].nelem; j++) {
+			*vptr++ = (&v.x)[j];
+		}
+
+		if(cmesh_has_attrib(cm, CMESH_ATTR_NORMAL)) {
+			if((vptr = get_vec3(cm, CMESH_ATTR_NORMAL, i, &n))) {
+				cgm_vmul_m3v3(&n, dir_xform);
+				for(j=0; j<cm->vattr[CMESH_ATTR_NORMAL].nelem; j++) {
+					*vptr++ = (&n.x)[j];
+				}
+			}
+		}
+		if(cmesh_has_attrib(cm, CMESH_ATTR_TANGENT)) {
+			if((vptr = get_vec3(cm, CMESH_ATTR_TANGENT, i, &t))) {
+				cgm_vmul_m3v3(&t, dir_xform);
+				for(j=0; j<cm->vattr[CMESH_ATTR_TANGENT].nelem; j++) {
+					*vptr++ = (&t.x)[j];
+				}
+			}
+		}
+	}
+}
+
+void cmesh_flip(struct cmesh *cm)
+{
+	cmesh_flip_faces(cm);
+	cmesh_flip_normals(cm);
+}
+
+void cmesh_flip_faces(struct cmesh *cm)
+{
+}
+void cmesh_flip_normals(struct cmesh *cm)
+{
+}
 
 void cmesh_explode(struct cmesh *cm);	/* undo all vertex sharing */
 

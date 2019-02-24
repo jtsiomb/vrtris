@@ -46,8 +46,10 @@ int cmesh_indexed(struct cmesh *cm);
  */
 float *cmesh_set_attrib(struct cmesh *cm, int attr, int nelem, unsigned int num,
 		const float *vdata);
-float *cmesh_attrib(struct cmesh *cm, int attr);	/* invalidates VBO */
+float *cmesh_attrib(struct cmesh *cm, int attr);			/* invalidates VBO */
 const float *cmesh_attrib_ro(struct cmesh *cm, int attr);	/* doesn't invalidate */
+float *cmesh_attrib_at(struct cmesh *cm, int attr, int idx);
+const float *cmesh_attrib_at_ro(struct cmesh *cm, int attr, int idx);
 int cmesh_attrib_count(struct cmesh *cm, int attr);
 
 /* indices can be 0, in which case only memory is allocated
