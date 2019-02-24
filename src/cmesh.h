@@ -33,9 +33,9 @@ int cmesh_init(struct cmesh *cm);
 void cmesh_destroy(struct cmesh *cm);
 
 void cmesh_clear(struct cmesh *cm);
-void cmesh_copy(struct cmesh *cmdest, struct cmesh *cmsrc);
+int cmesh_clone(struct cmesh *cmdest, struct cmesh *cmsrc);
 
-void cmesh_set_name(struct cmesh *cm, const char *name);
+int cmesh_set_name(struct cmesh *cm, const char *name);
 const char *cmesh_name(struct cmesh *cm);
 
 int cmesh_has_attrib(struct cmesh *cm, int attr);
@@ -61,18 +61,18 @@ int cmesh_index_count(struct cmesh *cm);
 int get_poly_count(struct cmesh *cm);
 
 /* attr can be -1 to invalidate all attributes */
-void cmesh_invalidate_attrib(struct cmesh *cm, int attr);
-void cmesh_invalidate_index(struct cmesh *cm);
+void cmesh_invalidate_vbo(struct cmesh *cm, int attr);
+void cmesh_invalidate_ibo(struct cmesh *cm);
 
 int cmesh_append(struct cmesh *cmdest, struct cmesh *cmsrc);
 
 /* immediate-mode style mesh construction interface */
 int cmesh_vertex(struct cmesh *cm, float x, float y, float z);
-int cmesh_normal(struct cmesh *cm, float nx, float ny, float nz);
-int cmesh_tangent(struct cmesh *cm, float tx, float ty, float tz);
-int cmesh_texcoord(struct cmesh *cm, float u, float v, float w);
-int cmesh_boneweights(struct cmesh *cm, float w1, float w2, float w3, float w4);
-int cmesh_boneidx(struct cmesh *cm, int idx1, int idx2, int idx3, int idx4);
+void cmesh_normal(struct cmesh *cm, float nx, float ny, float nz);
+void cmesh_tangent(struct cmesh *cm, float tx, float ty, float tz);
+void cmesh_texcoord(struct cmesh *cm, float u, float v, float w);
+void cmesh_boneweights(struct cmesh *cm, float w1, float w2, float w3, float w4);
+void cmesh_boneidx(struct cmesh *cm, int idx1, int idx2, int idx3, int idx4);
 
 /* dir_xform can be null, in which case it's calculated from xform */
 void cmesh_apply_xform(struct cmesh *cm, float *xform, float *dir_xform);
