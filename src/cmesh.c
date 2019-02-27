@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <float.h>
 #include <assert.h>
 #include "opengl.h"
 #include "cmesh.h"
@@ -40,7 +41,17 @@ struct cmesh {
 	int bsph_valid;
 };
 
+
+static int pre_draw(struct cmesh *cm);
+static void post_draw(struct cmesh *cm, int cur_sdr);
+static void update_buffers(struct cmesh *cm);
+static void update_wire_ibo(struct cmesh *cm);
+static void calc_aabb(struct cmesh *cm);
+static void calc_bsph(struct cmesh *cm);
+
+
 static int sdr_loc[CMESH_NUM_ATTR] = {0, 1, 2, 3, 4, 5, 6, 7};
+static int use_custom_sdr_attr;
 
 
 /* global state */
@@ -424,7 +435,7 @@ int cmesh_index_count(struct cmesh *cm)
 	return cm->nfaces * 3;
 }
 
-int get_poly_count(struct cmesh *cm)
+int cmesh_poly_count(struct cmesh *cm)
 {
 	if(cm->nfaces) {
 		return cm->nfaces;
@@ -652,32 +663,487 @@ void cmesh_flip(struct cmesh *cm)
 
 void cmesh_flip_faces(struct cmesh *cm)
 {
+	int i, j, idxnum, vnum, nelem;
+	unsigned int *indices;
+	float *verts, *vptr;
+
+	if(cmesh_indexed(cm)) {
+		if(!(indices = cmesh_index(cm))) {
+			return;
+		}
+		idxnum = cmesh_index_count(cm);
+		for(i=0; i<idxnum; i+=3) {
+			unsigned int tmp = indices[i + 2];
+			indices[i + 2] = indices[i + 1];
+			indices[i + 1] = tmp;
+		}
+	} else {
+		if(!(verts = cmesh_attrib(cm, CMESH_ATTR_VERTEX))) {
+			return;
+		}
+		vnum = cmesh_attrib_count(cm, CMESH_ATTR_VERTEX);
+		nelem = cm->vattr[CMESH_ATTR_VERTEX].nelem;
+		for(i=0; i<vnum; i+=3) {
+			for(j=0; j<nelem; j++) {
+				vptr = verts + (i + 1) * nelem + j;
+				float tmp = vptr[nelem];
+				vptr[nelem] = vptr[0];
+				vptr[0] = tmp;
+			}
+		}
+	}
 }
 void cmesh_flip_normals(struct cmesh *cm)
 {
+	int i, num;
+	float *nptr = cmesh_attrib(cm, CMESH_ATTR_NORMAL);
+	if(!nptr) return;
+
+	num = cm->nverts * cm->vattr[CMESH_ATTR_NORMAL].nelem;
+	for(i=0; i<num; i++) {
+		*nptr = -*nptr;
+		nptr++;
+	}
 }
 
-void cmesh_explode(struct cmesh *cm);	/* undo all vertex sharing */
+int cmesh_explode(struct cmesh *cm)
+{
+	int i, j, k, idxnum, nnverts;
+	unsigned int *indices;
 
-/* this is only guaranteed to work on an exploded mesh */
-void cmesh_calc_face_normals(struct cmesh *cm);
+	if(!cmesh_indexed(cm)) return 0;
 
-void cmesh_draw(struct cmesh *cm);
-void cmesh_draw_wire(struct cmesh *cm, float linesz);
-void cmesh_draw_vertices(struct cmesh *cm, float ptsz);
-void cmesh_draw_normals(struct cmesh *cm, float len);
-void cmesh_draw_tangents(struct cmesh *cm, float len);
+	indices = cmesh_index(cm);
+	assert(indices);
 
-/* get the bounding box in local space. The result will be cached and subsequent
- * calls will return the same box. The cache gets invalidated by any functions that
- * can affect the vertex data
- */
-void cmesh_aabbox(struct cmesh *cm, cgm_vec3 *vmin, cgm_vec3 *vmax);
+	idxnum = cmesh_index_count(cm);
+	nnverts = idxnum;
 
-/* get the bounding sphere in local space. The result will be cached ... see above */
-float cmesh_bsphere(struct cmesh *cm, cgm_vec3 *center, float *rad);
+	for(i=0; i<CMESH_NUM_ATTR; i++) {
+		const float *srcbuf;
+		float *tmpbuf, *dstptr;
 
-/* texture coordinate manipulation */
+		if(!cmesh_has_attrib(cm, i)) continue;
+
+		srcbuf = cmesh_attrib(cm, i);
+		if(!(tmpbuf = dynarr_alloc(nnverts * cm->vattr[i].nelem, sizeof(float)))) {
+			return -1;
+		}
+		dstptr = tmpbuf;
+
+		for(j=0; j<idxnum; j++) {
+			unsigned int idx = indices[j];
+			const float *srcptr = srcbuf + idx * cm->vattr[i].nelem;
+
+			for(k=0; k<cm->vattr[i].nelem; k++) {
+				*dstptr++ = *srcptr++;
+			}
+		}
+
+		dynarr_free(cm->vattr[i].data);
+		cm->vattr[i].data = tmpbuf;
+		cm->vattr[i].data_valid = 1;
+	}
+
+	cm->ibo_valid = 0;
+	cm->idata_valid = 0;
+	cm->idata = dynarr_clear(cm->idata);
+
+	cm->nverts = nnverts;
+	cm->nfaces = idxnum / 3;
+	return 0;
+}
+
+void cmesh_calc_face_normals(struct cmesh *cm)
+{
+	/* TODO */
+}
+
+static int pre_draw(struct cmesh *cm)
+{
+	int i, loc, cur_sdr;
+
+	glGetIntegerv(GL_CURRENT_PROGRAM, &cur_sdr);
+
+	update_buffers(cm);
+
+	if(!cm->vattr[CMESH_ATTR_VERTEX].vbo_valid) {
+		return -1;
+	}
+
+	if(cur_sdr && use_custom_sdr_attr) {
+		if(sdr_loc[CMESH_ATTR_VERTEX] == -1) {
+			return -1;
+		}
+
+		for(i=0; i<CMESH_NUM_ATTR; i++) {
+			loc = sdr_loc[i];
+			if(loc >= 0 && cm->vattr[i].vbo_valid) {
+				glBindBuffer(GL_ARRAY_BUFFER, cm->vattr[i].vbo);
+				glVertexAttribPointer(loc, cm->vattr[i].nelem, GL_FLOAT, GL_FALSE, 0, 0);
+				glEnableVertexAttribArray(loc);
+			}
+		}
+	} else {
+#ifndef GL_ES_VERSION_2_0
+		glBindBuffer(GL_ARRAY_BUFFER, cm->vattr[CMESH_ATTR_VERTEX].vbo);
+		glVertexPointer(cm->vattr[CMESH_ATTR_VERTEX].nelem, GL_FLOAT, 0, 0);
+		glEnableClientState(GL_VERTEX_ARRAY);
+
+		if(cm->vattr[CMESH_ATTR_NORMAL].vbo_valid) {
+			glBindBuffer(GL_ARRAY_BUFFER, cm->vattr[CMESH_ATTR_NORMAL].vbo);
+			glNormalPointer(GL_FLOAT, 0, 0);
+			glEnableClientState(GL_NORMAL_ARRAY);
+		}
+		if(cm->vattr[CMESH_ATTR_TEXCOORD].vbo_valid) {
+			glBindBuffer(GL_ARRAY_BUFFER, cm->vattr[CMESH_ATTR_TEXCOORD].vbo);
+			glTexCoordPointer(cm->vattr[CMESH_ATTR_TEXCOORD].nelem, GL_FLOAT, 0, 0);
+			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+		}
+		if(cm->vattr[CMESH_ATTR_COLOR].vbo_valid) {
+			glBindBuffer(GL_ARRAY_BUFFER, cm->vattr[CMESH_ATTR_COLOR].vbo);
+			glColorPointer(cm->vattr[CMESH_ATTR_COLOR].nelem, GL_FLOAT, 0, 0);
+			glEnableClientState(GL_COLOR_ARRAY);
+		}
+		if(cm->vattr[CMESH_ATTR_TEXCOORD2].vbo_valid) {
+			glClientActiveTexture(GL_TEXTURE1);
+			glBindBuffer(GL_ARRAY_BUFFER, cm->vattr[CMESH_ATTR_TEXCOORD2].vbo);
+			glTexCoordPointer(cm->vattr[CMESH_ATTR_TEXCOORD2].nelem, GL_FLOAT, 0, 0);
+			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+			glClientActiveTexture(GL_TEXTURE0);
+		}
+#endif	/* GL_ES_VERSION_2_0 */
+	}
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	return cur_sdr;
+}
+
+void cmesh_draw(struct cmesh *cm)
+{
+	int cur_sdr;
+
+	if((cur_sdr = pre_draw(cm)) == -1) {
+		return;
+	}
+
+	if(cm->ibo_valid) {
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cm->ibo);
+		glDrawElements(GL_TRIANGLES, cm->nfaces * 3, GL_UNSIGNED_INT, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	} else {
+		glDrawArrays(GL_TRIANGLES, 0, cm->nverts);
+	}
+
+	post_draw(cm, cur_sdr);
+}
+
+static void post_draw(struct cmesh *cm, int cur_sdr)
+{
+	int i;
+
+	if(cur_sdr && use_custom_sdr_attr) {
+		for(i=0; i<CMESH_NUM_ATTR; i++) {
+			int loc = sdr_loc[i];
+			if(loc >= 0 && cm->vattr[i].vbo_valid) {
+				glDisableVertexAttribArray(loc);
+			}
+		}
+	} else {
+#ifndef GL_ES_VERSION_2_0
+		glDisableClientState(GL_VERTEX_ARRAY);
+		if(cm->vattr[CMESH_ATTR_NORMAL].vbo_valid) {
+			glDisableClientState(GL_NORMAL_ARRAY);
+		}
+		if(cm->vattr[CMESH_ATTR_TEXCOORD].vbo_valid) {
+			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+		}
+		if(cm->vattr[CMESH_ATTR_COLOR].vbo_valid) {
+			glDisableClientState(GL_COLOR_ARRAY);
+		}
+		if(cm->vattr[CMESH_ATTR_TEXCOORD2].vbo_valid) {
+			glClientActiveTexture(GL_TEXTURE1);
+			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+			glClientActiveTexture(GL_TEXTURE0);
+		}
+#endif	/* GL_ES_VERSION_2_0 */
+	}
+}
+
+void cmesh_draw_wire(struct cmesh *cm, float linesz)
+{
+	int cur_sdr, nfaces;
+
+	if((cur_sdr = pre_draw(cm)) == -1) {
+		return;
+	}
+	update_wire_ibo(cm);
+
+	nfaces = cmesh_poly_count(cm);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cm->wire_ibo);
+	glDrawElements(GL_LINES, nfaces * 6, GL_UNSIGNED_INT, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+	post_draw(cm, cur_sdr);
+}
+
+void cmesh_draw_vertices(struct cmesh *cm, float ptsz)
+{
+	int cur_sdr;
+	if((cur_sdr = pre_draw(cm)) == -1) {
+		return;
+	}
+
+	glPushAttrib(GL_POINT_BIT);
+	glPointSize(ptsz);
+	glDrawArrays(GL_POINTS, 0, cm->nverts);
+	glPopAttrib();
+
+	post_draw(cm, cur_sdr);
+}
+
+void cmesh_draw_normals(struct cmesh *cm, float len)
+{
+#ifndef GL_ES_VERSION_2_0
+	int i, cur_sdr, vert_nelem, norm_nelem;
+	int loc = -1;
+	const float *varr, *norm;
+
+	varr = cmesh_attrib_ro(cm, CMESH_ATTR_VERTEX);
+	norm = cmesh_attrib_ro(cm, CMESH_ATTR_NORMAL);
+	if(!varr || !norm) return;
+
+	vert_nelem = cm->vattr[CMESH_ATTR_VERTEX].nelem;
+	norm_nelem = cm->vattr[CMESH_ATTR_NORMAL].nelem;
+
+	glGetIntegerv(GL_CURRENT_PROGRAM, &cur_sdr);
+	if(cur_sdr && use_custom_sdr_attr) {
+		if((loc = sdr_loc[CMESH_ATTR_VERTEX]) < 0) {
+			return;
+		}
+	}
+
+	glBegin(GL_LINES);
+	for(i=0; i<cm->nverts; i++) {
+		float x, y, z, endx, endy, endz;
+
+		x = varr[i * vert_nelem];
+		y = varr[i * vert_nelem + 1];
+		z = varr[i * vert_nelem + 2];
+		endx = x + norm[i * norm_nelem] * len;
+		endy = y + norm[i * norm_nelem + 1] * len;
+		endz = z + norm[i * norm_nelem + 2] * len;
+
+		if(loc == -1) {
+			glVertex3f(x, y, z);
+			glVertex3f(endx, endy, endz);
+		} else {
+			glVertexAttrib3f(loc, x, y, z);
+			glVertexAttrib3f(loc, endx, endy, endz);
+		}
+	}
+	glEnd();
+#endif	/* GL_ES_VERSION_2_0 */
+}
+
+void cmesh_draw_tangents(struct cmesh *cm, float len)
+{
+#ifndef GL_ES_VERSION_2_0
+	int i, cur_sdr, vert_nelem, tang_nelem;
+	int loc = -1;
+	const float *varr, *tang;
+
+	varr = cmesh_attrib_ro(cm, CMESH_ATTR_VERTEX);
+	tang = cmesh_attrib_ro(cm, CMESH_ATTR_TANGENT);
+	if(!varr || !tang) return;
+
+	vert_nelem = cm->vattr[CMESH_ATTR_VERTEX].nelem;
+	tang_nelem = cm->vattr[CMESH_ATTR_TANGENT].nelem;
+
+	glGetIntegerv(GL_CURRENT_PROGRAM, &cur_sdr);
+	if(cur_sdr && use_custom_sdr_attr) {
+		if((loc = sdr_loc[CMESH_ATTR_VERTEX]) < 0) {
+			return;
+		}
+	}
+
+	glBegin(GL_LINES);
+	for(i=0; i<cm->nverts; i++) {
+		float x, y, z, endx, endy, endz;
+
+		x = varr[i * vert_nelem];
+		y = varr[i * vert_nelem + 1];
+		z = varr[i * vert_nelem + 2];
+		endx = x + tang[i * tang_nelem] * len;
+		endy = y + tang[i * tang_nelem + 1] * len;
+		endz = z + tang[i * tang_nelem + 2] * len;
+
+		if(loc == -1) {
+			glVertex3f(x, y, z);
+			glVertex3f(endx, endy, endz);
+		} else {
+			glVertexAttrib3f(loc, x, y, z);
+			glVertexAttrib3f(loc, endx, endy, endz);
+		}
+	}
+	glEnd();
+#endif	/* GL_ES_VERSION_2_0 */
+}
+
+static void update_buffers(struct cmesh *cm)
+{
+	int i;
+
+	for(i=0; i<CMESH_NUM_ATTR; i++) {
+		if(cmesh_has_attrib(cm, i) && !cm->vattr[i].vbo_valid) {
+			glBindBuffer(GL_ARRAY_BUFFER, cm->vattr[i].vbo);
+			glBufferData(GL_ARRAY_BUFFER, cm->nverts * cm->vattr[i].nelem * sizeof(float),
+					cm->vattr[i].data, GL_STATIC_DRAW);
+			cm->vattr[i].vbo_valid = 1;
+		}
+	}
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	if(cm->idata_valid && !cm->ibo_valid) {
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cm->ibo);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, cm->nfaces * 3 * sizeof(unsigned int),
+				cm->idata, GL_STATIC_DRAW);
+		cm->ibo_valid = 1;
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	}
+}
+
+static void update_wire_ibo(struct cmesh *cm)
+{
+	int i, num_faces;
+	unsigned int *wire_idxarr, *dest;
+
+	update_buffers(cm);
+
+	if(cm->wire_ibo_valid) return;
+
+	if(!cm->wire_ibo) {
+		glGenBuffers(1, &cm->wire_ibo);
+	}
+	num_faces = cmesh_poly_count(cm);
+
+	if(!(wire_idxarr = malloc(num_faces * 6 * sizeof *wire_idxarr))) {
+		return;
+	}
+	dest = wire_idxarr;
+
+	if(cm->ibo_valid) {
+		/* we're dealing with an indexed mesh */
+		const unsigned int *idxarr = cmesh_index_ro(cm);
+
+		for(i=0; i<num_faces; i++) {
+			*dest++ = idxarr[0];
+			*dest++ = idxarr[1];
+			*dest++ = idxarr[1];
+			*dest++ = idxarr[2];
+			*dest++ = idxarr[2];
+			*dest++ = idxarr[0];
+			idxarr += 3;
+		}
+	} else {
+		/* not an indexed mesh */
+		for(i=0; i<num_faces; i++) {
+			int vidx = i * 3;
+			*dest++ = vidx;
+			*dest++ = vidx + 1;
+			*dest++ = vidx + 1;
+			*dest++ = vidx + 2;
+			*dest++ = vidx + 2;
+			*dest++ = vidx;
+		}
+	}
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cm->wire_ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, num_faces * 6 * sizeof(unsigned int),
+			wire_idxarr, GL_STATIC_DRAW);
+	free(wire_idxarr);
+	cm->wire_ibo_valid = 1;
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
+
+static void calc_aabb(struct cmesh *cm)
+{
+	int i, j;
+
+	if(!cmesh_attrib_ro(cm, CMESH_ATTR_VERTEX)) {
+		return;
+	}
+
+	cgm_vcons(&cm->aabb_min, FLT_MAX, FLT_MAX, FLT_MAX);
+	cgm_vcons(&cm->aabb_max, -FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+	for(i=0; i<cm->nverts; i++) {
+		const float *v = cmesh_attrib_at_ro(cm, CMESH_ATTR_VERTEX, i);
+		for(j=0; j<3; j++) {
+			if(v[j] < (&cm->aabb_min.x)[j]) {
+				(&cm->aabb_min.x)[j] = v[j];
+			}
+			if(v[j] > (&cm->aabb_max.x)[j]) {
+				(&cm->aabb_max.x)[j] = v[j];
+			}
+		}
+	}
+	cm->aabb_valid = 1;
+}
+
+void cmesh_aabbox(struct cmesh *cm, cgm_vec3 *vmin, cgm_vec3 *vmax)
+{
+	if(!cm->aabb_valid) {
+		calc_aabb(cm);
+	}
+	*vmin = cm->aabb_min;
+	*vmax = cm->aabb_max;
+}
+
+static void calc_bsph(struct cmesh *cm)
+{
+	int i;
+	float s, dist_sq;
+
+	if(!cmesh_attrib_ro(cm, CMESH_ATTR_VERTEX)) {
+		return;
+	}
+
+	cgm_vcons(&cm->bsph_center, 0, 0, 0);
+
+	/* first find the center */
+	for(i=0; i<cm->nverts; i++) {
+		const float *v = cmesh_attrib_at_ro(cm, CMESH_ATTR_VERTEX, i);
+		cm->bsph_center.x += v[0];
+		cm->bsph_center.y += v[1];
+		cm->bsph_center.z += v[2];
+	}
+	s = 1.0f / (float)cm->nverts;
+	cm->bsph_center.x *= s;
+	cm->bsph_center.y *= s;
+	cm->bsph_center.z *= s;
+
+	cm->bsph_radius = 0.0f;
+	for(i=0; i<cm->nverts; i++) {
+		const cgm_vec3 *v = (const cgm_vec3*)cmesh_attrib_at_ro(cm, CMESH_ATTR_VERTEX, i);
+		if((dist_sq = cgm_vdist_sq(v, &cm->bsph_center)) > cm->bsph_radius) {
+			cm->bsph_radius = dist_sq;
+		}
+	}
+	cm->bsph_radius = sqrt(cm->bsph_radius);
+	cm->bsph_valid = 1;
+}
+
+float cmesh_bsphere(struct cmesh *cm, cgm_vec3 *center, float *rad)
+{
+	if(!cm->bsph_valid) {
+		calc_bsph(cm);
+	}
+	*center = cm->bsph_center;
+	*rad = cm->bsph_radius;
+	return cm->bsph_radius;
+}
+
+/* TODO */
 void cmesh_texcoord_apply_xform(struct cmesh *cm, float *xform);
 void cmesh_texcoord_gen_plane(struct cmesh *cm, cgm_vec3 *norm, cgm_vec3 *tang);
 void cmesh_texcoord_gen_box(struct cmesh *cm);

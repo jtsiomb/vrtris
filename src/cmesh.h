@@ -60,7 +60,7 @@ unsigned int *cmesh_index(struct cmesh *cm);	/* invalidates IBO */
 const unsigned int *cmesh_index_ro(struct cmesh *cm);	/* doesn't invalidate */
 int cmesh_index_count(struct cmesh *cm);
 
-int get_poly_count(struct cmesh *cm);
+int cmesh_poly_count(struct cmesh *cm);
 
 /* attr can be -1 to invalidate all attributes */
 void cmesh_invalidate_vbo(struct cmesh *cm, int attr);
@@ -83,7 +83,7 @@ void cmesh_flip(struct cmesh *cm);	/* flip faces (winding) and normals */
 void cmesh_flip_faces(struct cmesh *cm);
 void cmesh_flip_normals(struct cmesh *cm);
 
-void cmesh_explode(struct cmesh *cm);	/* undo all vertex sharing */
+int cmesh_explode(struct cmesh *cm);	/* undo all vertex sharing */
 
 /* this is only guaranteed to work on an exploded mesh */
 void cmesh_calc_face_normals(struct cmesh *cm);
