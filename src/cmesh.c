@@ -49,6 +49,7 @@ static void update_wire_ibo(struct cmesh *cm);
 static void calc_aabb(struct cmesh *cm);
 static void calc_bsph(struct cmesh *cm);
 
+static int def_nelem[CMESH_NUM_ATTR] = {3, 3, 3, 2, 4, 4, 4, 2};
 
 static int sdr_loc[CMESH_NUM_ATTR] = {0, 1, 2, 3, 4, 5, 6, 7};
 static int use_custom_sdr_attr;
@@ -378,9 +379,15 @@ int cmesh_push_attrib(struct cmesh *cm, int attr, float *v)
 	}
 	cm->vattr[attr].data = vptr;
 	vptr += cursz;
+
+	if(!cm->vattr[attr].nelem) {
+		cm->vattr[attr].nelem = def_nelem[attr];
+	}
+
 	for(i=0; i<cm->vattr[attr].nelem; i++) {
 		*vptr++ = *v++;
 	}
+	cm->vattr[attr].data_valid = 1;
 	cm->vattr[attr].vbo_valid = 0;
 	return 0;
 }
@@ -500,6 +507,8 @@ int cmesh_push_index(struct cmesh *cm, unsigned int idx)
 		return -1;
 	}
 	cm->idata = iptr;
+	cm->idata_valid = 1;
+	cm->ibo_valid = 0;
 	return 0;
 }
 
