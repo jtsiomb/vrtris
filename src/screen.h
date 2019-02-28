@@ -32,7 +32,7 @@ int init_screens(void);
 void cleanup_screens(void);
 void reshape_screens(int x, int y);
 
-void push_screen(struct game_screen *s);
+int push_screen(struct game_screen *s);
 int pop_screen(void);
 
 #endif	/* SCREEN_H_ */

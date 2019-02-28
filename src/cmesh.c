@@ -366,6 +366,64 @@ int cmesh_attrib_count(struct cmesh *cm, int attr)
 	return cmesh_has_attrib(cm, attr) ? cm->nverts : 0;
 }
 
+int cmesh_push_attrib(struct cmesh *cm, int attr, float *v)
+{
+	float *vptr;
+	int i;
+	int cursz = dynarr_size(cm->vattr[attr].data);
+	int newsz = cursz + cm->vattr[attr].nelem;
+
+	if(!(vptr = dynarr_resize(cm->vattr[attr].data, newsz))) {
+		return -1;
+	}
+	cm->vattr[attr].data = vptr;
+	vptr += cursz;
+	for(i=0; i<cm->vattr[attr].nelem; i++) {
+		*vptr++ = *v++;
+	}
+	cm->vattr[attr].vbo_valid = 0;
+	return 0;
+}
+
+int cmesh_push_attrib1f(struct cmesh *cm, int attr, float x)
+{
+	float v[4];
+	v[0] = x;
+	v[1] = v[2] = 0.0f;
+	v[3] = 1.0f;
+	return cmesh_push_attrib(cm, attr, v);
+}
+
+int cmesh_push_attrib2f(struct cmesh *cm, int attr, float x, float y)
+{
+	float v[4];
+	v[0] = x;
+	v[1] = y;
+	v[2] = 0.0f;
+	v[3] = 1.0f;
+	return cmesh_push_attrib(cm, attr, v);
+}
+
+int cmesh_push_attrib3f(struct cmesh *cm, int attr, float x, float y, float z)
+{
+	float v[4];
+	v[0] = x;
+	v[1] = y;
+	v[2] = z;
+	v[3] = 1.0f;
+	return cmesh_push_attrib(cm, attr, v);
+}
+
+int cmesh_push_attrib4f(struct cmesh *cm, int attr, float x, float y, float z, float w)
+{
+	float v[4];
+	v[0] = x;
+	v[1] = y;
+	v[2] = z;
+	v[3] = w;
+	return cmesh_push_attrib(cm, attr, v);
+}
+
 /* indices can be 0, in which case only memory is allocated
  * returns pointer to the index array
  */
@@ -433,6 +491,16 @@ const unsigned int *cmesh_index_ro(struct cmesh *cm)
 int cmesh_index_count(struct cmesh *cm)
 {
 	return cm->nfaces * 3;
+}
+
+int cmesh_push_index(struct cmesh *cm, unsigned int idx)
+{
+	unsigned int *iptr;
+	if(!(iptr = dynarr_push(cm->idata, &idx))) {
+		return -1;
+	}
+	cm->idata = iptr;
+	return 0;
 }
 
 int cmesh_poly_count(struct cmesh *cm)

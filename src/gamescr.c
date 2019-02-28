@@ -1,4 +1,5 @@
 #include "screen.h"
+#include "cmesh.h"
 
 static int init(void);
 static void cleanup(void);
@@ -29,14 +30,23 @@ struct game_screen game_screen = {
 	wheel
 };
 
+static struct cmesh *blkmesh;
 
 static int init(void)
 {
+	if(!(blkmesh = cmesh_alloc())) {
+		return -1;
+	}
+	if(cmesh_load(blkmesh, "data/noisecube.obj") == -1) {
+		fprintf(stderr, "failed to load block model\n");
+		return -1;
+	}
 	return 0;
 }
 
 static void cleanup(void)
 {
+	cmesh_free(blkmesh);
 }
 
 static void start(void)

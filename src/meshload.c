@@ -1,12 +1,10 @@
-#if 0
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <assert.h>
-#include "mesh.h"
+#include "cmesh.h"
 #include "dynarr.h"
 #include "rbtree.h"
-#include "util.h"
 
 struct vertex_pos_color {
 	float x, y, z;
@@ -29,19 +27,19 @@ static void free_rbnode_key(struct rbnode *n, void *cls);
  * to the same triplet if it has been encountered before. That index is
  * appended to the index buffer.
  *
- * If a particular triplet has not been encountered before, a new g3d_vertex is
+ * If a particular triplet has not been encountered before, a new vertex is
  * appended to the vertex buffer. The index of this new vertex is appended to
  * the index buffer, and also inserted into the tree for future searches.
  */
-int load_mesh(struct g3d_mesh *mesh, const char *fname)
+int cmesh_load(struct cmesh *mesh, const char *fname)
 {
 	int i, line_num = 0, result = -1;
 	int found_quad = 0;
 	FILE *fp = 0;
 	char buf[256];
 	struct vertex_pos_color *varr = 0;
-	vec3_t *narr = 0;
-	vec2_t *tarr = 0;
+	cgm_vec3 *narr = 0;
+	cgm_vec2 *tarr = 0;
 	struct rbtree *rbtree = 0;
 
 	if(!(fp = fopen(fname, "rb"))) {
@@ -55,11 +53,6 @@ int load_mesh(struct g3d_mesh *mesh, const char *fname)
 	}
 	rb_set_delete_func(rbtree, free_rbnode_key, 0);
 
-	if(!(mesh->varr = dynarr_alloc(0, sizeof *mesh->varr)) ||
-			!(mesh->iarr = dynarr_alloc(0, sizeof *mesh->iarr))) {
-		fprintf(stderr, "load_mesh: failed to allocate resizable mesh arrays\n");
-		goto err;
-	}
 	if(!(varr = dynarr_alloc(0, sizeof *varr)) ||
 			!(narr = dynarr_alloc(0, sizeof *narr)) ||
 			!(tarr = dynarr_alloc(0, sizeof *tarr))) {
@@ -102,7 +95,7 @@ int load_mesh(struct g3d_mesh *mesh, const char *fname)
 
 			} else if(line[1] == 't' && isspace(line[2])) {
 				/* texcoord */
-				vec2_t tc;
+				cgm_vec2 tc;
 				if(sscanf(line + 3, "%f %f", &tc.x, &tc.y) != 2) {
 					fprintf(stderr, "%s:%d: invalid texcoord definition: \"%s\"\n", fname, line_num, line);
 					goto err;
@@ -114,7 +107,7 @@ int load_mesh(struct g3d_mesh *mesh, const char *fname)
 
 			} else if(line[1] == 'n' && isspace(line[2])) {
 				/* normal */
-				vec3_t norm;
+				cgm_vec3 norm;
 				if(sscanf(line + 3, "%f %f %f", &norm.x, &norm.y, &norm.z) != 3) {
 					fprintf(stderr, "%s:%d: invalid normal definition: \"%s\"\n", fname, line_num, line);
 					goto err;
@@ -147,53 +140,41 @@ int load_mesh(struct g3d_mesh *mesh, const char *fname)
 					}
 
 					if((node = rb_find(rbtree, &fv))) {
-						uint16_t idx = (int)(intptr_t)node->data;
-						if(!(mesh->iarr = dynarr_push(mesh->iarr, &idx))) {
+						unsigned int idx = (unsigned int)node->data;
+						if(cmesh_push_index(mesh, idx) == -1) {
 							fprintf(stderr, "load_mesh: failed to resize index array\n");
 							goto err;
 						}
 					} else {
-						uint16_t newidx = dynarr_size(mesh->varr);
-						struct g3d_vertex v;
+						unsigned int newidx = cmesh_attrib_count(mesh, CMESH_ATTR_VERTEX);
 						struct facevertex *newfv;
+						struct vertex_pos_color *vptr = varr + fv.vidx;
+						float tu, tv;
 
-						v.x = varr[fv.vidx].x;
-						v.y = varr[fv.vidx].y;
-						v.z = varr[fv.vidx].z;
-						v.w = 1.0f;
-						v.r = cround64(varr[fv.vidx].r * 255.0);
-						v.g = cround64(varr[fv.vidx].g * 255.0);
-						v.b = cround64(varr[fv.vidx].b * 255.0);
-						v.a = cround64(varr[fv.vidx].a * 255.0);
-						if(fv.tidx >= 0) {
-							v.u = tarr[fv.tidx].x;
-							v.v = tarr[fv.tidx].y;
-						} else {
-							v.u = v.x;
-							v.v = v.y;
-						}
-						if(fv.nidx >= 0) {
-							v.nx = narr[fv.nidx].x;
-							v.ny = narr[fv.nidx].y;
-							v.nz = narr[fv.nidx].z;
-						} else {
-							v.nx = v.ny = 0.0f;
-							v.nz = 1.0f;
-						}
-
-						if(!(mesh->varr = dynarr_push(mesh->varr, &v))) {
-							fprintf(stderr, "load_mesh: failed to resize combined vertex array\n");
+						if(cmesh_push_attrib3f(mesh, CMESH_ATTR_VERTEX, vptr->x, vptr->y, vptr->z) == -1) {
+							fprintf(stderr, "load_mesh: failed to resize vertex array\n");
 							goto err;
 						}
-						if(!(mesh->iarr = dynarr_push(mesh->iarr, &newidx))) {
-							fprintf(stderr, "load_mesh: failed to resize index array\n");
+						if(cmesh_push_attrib(mesh, CMESH_ATTR_COLOR, &vptr->r) == -1) {
+							fprintf(stderr, "load_mesh: failed to resize color array\n");
+							goto err;
+						}
+						if(fv.tidx >= 0) {
+							tu = tarr[fv.tidx].x;
+							tv = tarr[fv.tidx].y;
+						} else {
+							tu = vptr->x;
+							tv = vptr->y;
+						}
+						if(cmesh_push_attrib2f(mesh, CMESH_ATTR_TEXCOORD, tu, tv) == -1) {
+							fprintf(stderr, "load_mesh: failed to resize texcoord array\n");
 							goto err;
 						}
 
 						if((newfv = malloc(sizeof *newfv))) {
 							*newfv = fv;
 						}
-						if(!newfv || rb_insert(rbtree, newfv, (void*)(intptr_t)newidx) == -1) {
+						if(!newfv || rb_insert(rbtree, newfv, (void*)newidx) == -1) {
 							fprintf(stderr, "load_mesh: failed to insert facevertex to the binary search tree\n");
 							goto err;
 						}
@@ -208,67 +189,18 @@ int load_mesh(struct g3d_mesh *mesh, const char *fname)
 		}
 	}
 
-	mesh->prim = found_quad ? G3D_QUADS : G3D_TRIANGLES;
-	mesh->vcount = dynarr_size(mesh->varr);
-	mesh->icount = dynarr_size(mesh->iarr);
-	mesh->varr = dynarr_finalize(mesh->varr);
-	mesh->iarr = dynarr_finalize(mesh->iarr);
 	result = 0;	/* success */
 
 	printf("loaded %s mesh: %s: %d vertices, %d faces\n", found_quad ? "quad" : "triangle",
-			fname, mesh->vcount, mesh->icount / mesh->prim);
+			fname, cmesh_attrib_count(mesh, CMESH_ATTR_VERTEX), cmesh_poly_count(mesh));
 
 err:
 	if(fp) fclose(fp);
 	dynarr_free(varr);
 	dynarr_free(narr);
 	dynarr_free(tarr);
-	if(result == -1) {
-		dynarr_free(mesh->varr);
-		dynarr_free(mesh->iarr);
-	}
 	rb_free(rbtree);
 	return result;
-}
-
-int save_mesh(struct g3d_mesh *mesh, const char *fname)
-{
-	int i, fvcount;
-	FILE *fp;
-
-	if(!(fp = fopen(fname, "wb"))) {
-		fprintf(stderr, "save_mesh: failed to open %s for writing\n", fname);
-		return -1;
-	}
-	fprintf(fp, "# Wavefront OBJ file shoved in your FACE by Mindlapse. Deal with it\n");
-
-	for(i=0; i<mesh->vcount; i++) {
-		struct g3d_vertex *v = mesh->varr + i;
-		fprintf(fp, "v %f %f %f %f %f %f %f\n", v->x, v->y, v->z, v->r / 255.0f, v->g / 255.0f,
-				v->b / 255.0f, v->a / 255.0f);
-	}
-	for(i=0; i<mesh->vcount; i++) {
-		fprintf(fp, "vn %f %f %f\n", mesh->varr[i].nx, mesh->varr[i].ny, mesh->varr[i].nz);
-	}
-	for(i=0; i<mesh->vcount; i++) {
-		fprintf(fp, "vt %f %f\n", mesh->varr[i].u, mesh->varr[i].v);
-	}
-
-	fvcount = mesh->prim;
-	for(i=0; i<mesh->icount; i++) {
-		int idx = mesh->iarr[i] + 1;
-
-		if(fvcount == mesh->prim) {
-			fprintf(fp, "\nf");
-			fvcount = 0;
-		}
-		fprintf(fp, " %d/%d/%d", idx, idx, idx);
-		++fvcount;
-	}
-	fprintf(fp, "\n");
-
-	fclose(fp);
-	return 0;
 }
 
 static char *clean_line(char *s)
@@ -347,4 +279,3 @@ static void free_rbnode_key(struct rbnode *n, void *cls)
 {
 	free(n->key);
 }
-#endif	/* 0 */

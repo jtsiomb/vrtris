@@ -51,6 +51,11 @@ const float *cmesh_attrib_ro(struct cmesh *cm, int attr);	/* doesn't invalidate 
 float *cmesh_attrib_at(struct cmesh *cm, int attr, int idx);
 const float *cmesh_attrib_at_ro(struct cmesh *cm, int attr, int idx);
 int cmesh_attrib_count(struct cmesh *cm, int attr);
+int cmesh_push_attrib(struct cmesh *cm, int attr, float *v);
+int cmesh_push_attrib1f(struct cmesh *cm, int attr, float x);
+int cmesh_push_attrib2f(struct cmesh *cm, int attr, float x, float y);
+int cmesh_push_attrib3f(struct cmesh *cm, int attr, float x, float y, float z);
+int cmesh_push_attrib4f(struct cmesh *cm, int attr, float x, float y, float z, float w);
 
 /* indices can be 0, in which case only memory is allocated
  * returns pointer to the index array
@@ -59,6 +64,7 @@ unsigned int *cmesh_set_index(struct cmesh *cm, int num, const unsigned int *ind
 unsigned int *cmesh_index(struct cmesh *cm);	/* invalidates IBO */
 const unsigned int *cmesh_index_ro(struct cmesh *cm);	/* doesn't invalidate */
 int cmesh_index_count(struct cmesh *cm);
+int cmesh_push_index(struct cmesh *cm, unsigned int idx);
 
 int cmesh_poly_count(struct cmesh *cm);
 
@@ -108,6 +114,9 @@ void cmesh_texcoord_apply_xform(struct cmesh *cm, float *xform);
 void cmesh_texcoord_gen_plane(struct cmesh *cm, cgm_vec3 *norm, cgm_vec3 *tang);
 void cmesh_texcoord_gen_box(struct cmesh *cm);
 void cmesh_texcoord_gen_cylinder(struct cmesh *cm);
+
+
+int cmesh_load(struct cmesh *cm, const char *fname);
 
 int cmesh_dump(struct cmesh *cm, const char *fname);
 int cmesh_dump_file(struct cmesh *cm, FILE *fp);

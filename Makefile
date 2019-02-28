@@ -4,7 +4,11 @@ dep = $(obj:.o=.d)
 bin = vrtris
 
 
-CFLAGS = -pedantic -Wall -g `pkg-config --cflags sdl2`
+warn = -pedantic -Wall -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
+dbg = -g
+opt = -O0
+
+CFLAGS = $(warn) $(dbg) $(opt) `pkg-config --cflags sdl2`
 LDFLAGS = $(libsys) $(libgl) `pkg-config --libs sdl2` -ldrawtext -lgoatvr \
 		  -limago -lm
 
@@ -28,6 +32,10 @@ $(bin): $(obj)
 	$(CC) -o $@ $(obj) $(LDFLAGS)
 
 -include $(dep)
+
+%.d: %.c
+	@echo depfile $@
+	@$(CPP) $(CFLAGS) $< -MM -MT $(@:.d=.o) >$@
 
 .PHONY: cross
 cross:
