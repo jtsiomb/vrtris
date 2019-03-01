@@ -38,6 +38,11 @@ int init_options(int argc, char **argv, const char *cfgfile)
 
 	/* default options */
 	opt = def_opt;
+	if(!(opt.start_scr = malloc(strlen(def_opt.start_scr) + 1))) {
+		perror("failed to allocate memory");
+		return -1;
+	}
+	strcpy(opt.start_scr, def_opt.start_scr);
 
 	argv0 = argv[0];
 

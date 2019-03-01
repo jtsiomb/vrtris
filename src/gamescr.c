@@ -1,3 +1,4 @@
+#include "opengl.h"
 #include "screen.h"
 #include "cmesh.h"
 
@@ -63,6 +64,9 @@ static void update(float dt)
 
 static void draw(void)
 {
+	glTranslatef(0, 0, 6);
+
+	cmesh_draw(blkmesh);
 }
 
 static void reshape(int x, int y)

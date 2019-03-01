@@ -7,6 +7,8 @@ int vp_width, vp_height;	/* viewport size differs from win size during VR eye re
 float win_aspect;
 int fb_srgb;
 
+float view_matrix[16], proj_matrix[16];
+
 enum {
 	MOD_SHIFT	= 1,
 	MOD_ALT		= 2,

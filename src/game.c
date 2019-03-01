@@ -12,7 +12,7 @@
 static void calc_framerate(void);
 static void print_framerate(void);
 
-static float view_matrix[16], proj_matrix[16];
+float view_matrix[16], proj_matrix[16];
 static int should_swap;
 static unsigned long framerate;
 
