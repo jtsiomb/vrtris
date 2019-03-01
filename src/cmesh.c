@@ -4,6 +4,7 @@
 #include <assert.h>
 #include "opengl.h"
 #include "cmesh.h"
+#include "logger.h"
 
 
 struct cmesh_vattrib {
@@ -1232,7 +1233,134 @@ void cmesh_texcoord_gen_plane(struct cmesh *cm, cgm_vec3 *norm, cgm_vec3 *tang);
 void cmesh_texcoord_gen_box(struct cmesh *cm);
 void cmesh_texcoord_gen_cylinder(struct cmesh *cm);
 
-int cmesh_dump(struct cmesh *cm, const char *fname);
-int cmesh_dump_file(struct cmesh *cm, FILE *fp);
-int cmesh_dump_obj(struct cmesh *cm, const char *fname);
-int cmesh_dump_obj_file(struct cmesh *cm, FILE *fp, int voffs);
+int cmesh_dump(struct cmesh *cm, const char *fname)
+{
+	FILE *fp = fopen(fname, "wb");
+	if(fp) {
+		int res = cmesh_dump_file(cm, fp);
+		fclose(fp);
+		return res;
+	}
+	return -1;
+}
+
+int cmesh_dump_file(struct cmesh *cm, FILE *fp)
+{
+	static const char *label[] = { "pos", "nor", "tan", "tex", "col", "bw", "bid", "tex2" };
+	static const char *elemfmt[] = { 0, " %s(%g)", " %s(%g, %g)", " %s(%g, %g, %g)", " %s(%g, %g, %g, %g)", 0 };
+	int i, j;
+
+	if(!cmesh_has_attrib(cm, CMESH_ATTR_VERTEX)) {
+		return -1;
+	}
+
+	fprintf(fp, "VERTEX ATTRIBUTES\n");
+
+	for(i=0; i<cm->nverts; i++) {
+		fprintf(fp, "%5u:", i);
+		for(j=0; j<CMESH_NUM_ATTR; j++) {
+			if(cmesh_has_attrib(cm, j)) {
+				const float *v = cmesh_attrib_at_ro(cm, j, i);
+				int nelem = cm->vattr[j].nelem;
+				fprintf(fp, elemfmt[nelem], label[j], v[0], nelem > 1 ? v[1] : 0.0f,
+						nelem > 2 ? v[2] : 0.0f, nelem > 3 ? v[3] : 0.0f);
+			}
+		}
+		fputc('\n', fp);
+	}
+
+	if(cmesh_indexed(cm)) {
+		const unsigned int *idx = cmesh_index_ro(cm);
+		int numidx = cmesh_index_count(cm);
+		int numtri = numidx / 3;
+		assert(numidx % 3 == 0);
+
+		fprintf(fp, "FACES\n");
+
+		for(i=0; i<numtri; i++) {
+			fprintf(fp, "%5d: %d %d %d\n", i, idx[0], idx[1], idx[2]);
+			idx += 3;
+		}
+	}
+	return 0;
+}
+
+int cmesh_dump_obj(struct cmesh *cm, const char *fname)
+{
+	FILE *fp = fopen(fname, "wb");
+	if(fp) {
+		int res = cmesh_dump_obj_file(cm, fp, 0);
+		fclose(fp);
+		return res;
+	}
+	return -1;
+}
+
+int cmesh_dump_obj_file(struct cmesh *cm, FILE *fp, int voffs)
+{
+	int i, j, num, nelem;
+
+	if(!cmesh_has_attrib(cm, CMESH_ATTR_VERTEX)) {
+		return -1;
+	}
+
+
+	nelem = cm->vattr[CMESH_ATTR_VERTEX].nelem;
+	if((num = dynarr_size(cm->vattr[CMESH_ATTR_VERTEX].data)) != cm->nverts * nelem) {
+		warning_log("vertex array size (%d) != nverts (%d)\n", num, cm->nverts);
+	}
+	for(i=0; i<cm->nverts; i++) {
+		const float *v = cmesh_attrib_at_ro(cm, CMESH_ATTR_VERTEX, i);
+		fprintf(fp, "v %f %f %f\n", v[0], nelem > 1 ? v[1] : 0.0f, nelem > 2 ? v[2] : 0.0f);
+	}
+
+	if(cmesh_has_attrib(cm, CMESH_ATTR_NORMAL)) {
+		nelem = cm->vattr[CMESH_ATTR_NORMAL].nelem;
+		if((num = dynarr_size(cm->vattr[CMESH_ATTR_NORMAL].data)) != cm->nverts * nelem) {
+			warning_log("normal array size (%d) != nverts (%d)\n", num, cm->nverts);
+		}
+		for(i=0; i<cm->nverts; i++) {
+			const float *v = cmesh_attrib_at_ro(cm, CMESH_ATTR_NORMAL, i);
+			fprintf(fp, "vn %f %f %f\n", v[0], nelem > 1 ? v[1] : 0.0f, nelem > 2 ? v[2] : 0.0f);
+		}
+	}
+
+	if(cmesh_has_attrib(cm, CMESH_ATTR_TEXCOORD)) {
+		nelem = cm->vattr[CMESH_ATTR_TEXCOORD].nelem;
+		if((num = dynarr_size(cm->vattr[CMESH_ATTR_TEXCOORD].data)) != cm->nverts * nelem) {
+			warning_log("texcoord array size (%d) != nverts (%d)\n", num, cm->nverts);
+		}
+		for(i=0; i<cm->nverts; i++) {
+			const float *v = cmesh_attrib_at_ro(cm, CMESH_ATTR_TEXCOORD, i);
+			fprintf(fp, "vt %f %f\n", v[0], nelem > 1 ? v[1] : 0.0f);
+		}
+	}
+
+	if(cmesh_indexed(cm)) {
+		const unsigned int *idxptr = cmesh_index_ro(cm);
+		int numidx = cmesh_index_count(cm);
+		int numtri = numidx / 3;
+		assert(numidx % 3 == 0);
+
+		for(i=0; i<numtri; i++) {
+			fputc('f', fp);
+			for(j=0; j<3; j++) {
+				unsigned int idx = *idxptr++ + 1 + voffs;
+				fprintf(fp, " %u/%u/%u", idx, idx, idx);
+			}
+			fputc('\n', fp);
+		}
+	} else {
+		int numtri = cm->nverts / 3;
+		unsigned int idx = 1 + voffs;
+		for(i=0; i<numtri; i++) {
+			fputc('f', fp);
+			for(j=0; j<3; j++) {
+				fprintf(fp, " %u/%u/%u", idx, idx, idx);
+				++idx;
+			}
+			fputc('\n', fp);
+		}
+	}
+	return 0;
+}

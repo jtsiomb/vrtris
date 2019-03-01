@@ -12,7 +12,6 @@
 static void calc_framerate(void);
 static void print_framerate(void);
 
-float view_matrix[16], proj_matrix[16];
 static int should_swap;
 static unsigned long framerate;
 
@@ -39,6 +38,11 @@ int game_init(int argc, char **argv)
 		goatvr_startvr();
 		should_swap = goatvr_should_swap();
 	}
+
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
 
 	return 0;
 }
