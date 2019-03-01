@@ -45,6 +45,7 @@ static int init(void)
 		fprintf(stderr, "failed to load block model\n");
 		return -1;
 	}
+	cmesh_dump(blkmesh, "dump");
 	cmesh_dump_obj(blkmesh, "dump.obj");
 	return 0;
 }

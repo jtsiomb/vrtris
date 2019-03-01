@@ -35,6 +35,7 @@ int cmesh_load(struct cmesh *mesh, const char *fname)
 {
 	int i, line_num = 0, result = -1;
 	int found_quad = 0;
+	int found_color = 0;
 	FILE *fp = 0;
 	char buf[256];
 	struct vertex_pos_color *varr = 0;
@@ -78,6 +79,7 @@ int cmesh_load(struct cmesh *mesh, const char *fname)
 					fprintf(stderr, "%s:%d: invalid vertex definition: \"%s\"\n", fname, line_num, line);
 					goto err;
 				}
+				if(num > 3) found_color = 1;
 				switch(num) {
 				case 3:
 					v.r = 1.0f;
@@ -141,6 +143,7 @@ int cmesh_load(struct cmesh *mesh, const char *fname)
 
 					if((node = rb_find(rbtree, &fv))) {
 						unsigned int idx = (unsigned int)node->data;
+						assert(idx < cmesh_attrib_count(mesh, CMESH_ATTR_VERTEX));
 						if(cmesh_push_index(mesh, idx) == -1) {
 							fprintf(stderr, "load_mesh: failed to resize index array\n");
 							goto err;
@@ -149,26 +152,33 @@ int cmesh_load(struct cmesh *mesh, const char *fname)
 						unsigned int newidx = cmesh_attrib_count(mesh, CMESH_ATTR_VERTEX);
 						struct facevertex *newfv;
 						struct vertex_pos_color *vptr = varr + fv.vidx;
-						float tu, tv;
 
 						if(cmesh_push_attrib3f(mesh, CMESH_ATTR_VERTEX, vptr->x, vptr->y, vptr->z) == -1) {
 							fprintf(stderr, "load_mesh: failed to resize vertex array\n");
 							goto err;
 						}
-						if(cmesh_push_attrib(mesh, CMESH_ATTR_COLOR, &vptr->r) == -1) {
-							fprintf(stderr, "load_mesh: failed to resize color array\n");
-							goto err;
+						if(found_color) {
+							if(cmesh_push_attrib(mesh, CMESH_ATTR_COLOR, &vptr->r) == -1) {
+								fprintf(stderr, "load_mesh: failed to resize color array\n");
+								goto err;
+							}
+						}
+						if(fv.nidx >= 0) {
+							float nx = narr[fv.nidx].x;
+							float ny = narr[fv.nidx].y;
+							float nz = narr[fv.nidx].z;
+							if(cmesh_push_attrib3f(mesh, CMESH_ATTR_NORMAL, nx, ny, nz) == -1) {
+								fprintf(stderr, "load_mesh: failed to resize normal array\n");
+								goto err;
+							}
 						}
 						if(fv.tidx >= 0) {
-							tu = tarr[fv.tidx].x;
-							tv = tarr[fv.tidx].y;
-						} else {
-							tu = vptr->x;
-							tv = vptr->y;
-						}
-						if(cmesh_push_attrib2f(mesh, CMESH_ATTR_TEXCOORD, tu, tv) == -1) {
-							fprintf(stderr, "load_mesh: failed to resize texcoord array\n");
-							goto err;
+							float tu = tarr[fv.tidx].x;
+							float tv = tarr[fv.tidx].y;
+							if(cmesh_push_attrib2f(mesh, CMESH_ATTR_TEXCOORD, tu, tv) == -1) {
+								fprintf(stderr, "load_mesh: failed to resize texcoord array\n");
+								goto err;
+							}
 						}
 
 						if((newfv = malloc(sizeof *newfv))) {

@@ -1296,9 +1296,14 @@ int cmesh_dump_obj(struct cmesh *cm, const char *fname)
 	return -1;
 }
 
+#define HAS_VN	1
+#define HAS_VT	2
+
 int cmesh_dump_obj_file(struct cmesh *cm, FILE *fp, int voffs)
 {
+	static const char *fmtstr[] = {" %u", " %u//%u", " %u/%u", " %u/%u/%u"};
 	int i, j, num, nelem;
+	unsigned int aflags = 0;
 
 	if(!cmesh_has_attrib(cm, CMESH_ATTR_VERTEX)) {
 		return -1;
@@ -1315,6 +1320,7 @@ int cmesh_dump_obj_file(struct cmesh *cm, FILE *fp, int voffs)
 	}
 
 	if(cmesh_has_attrib(cm, CMESH_ATTR_NORMAL)) {
+		aflags |= HAS_VN;
 		nelem = cm->vattr[CMESH_ATTR_NORMAL].nelem;
 		if((num = dynarr_size(cm->vattr[CMESH_ATTR_NORMAL].data)) != cm->nverts * nelem) {
 			warning_log("normal array size (%d) != nverts (%d)\n", num, cm->nverts);
@@ -1326,6 +1332,7 @@ int cmesh_dump_obj_file(struct cmesh *cm, FILE *fp, int voffs)
 	}
 
 	if(cmesh_has_attrib(cm, CMESH_ATTR_TEXCOORD)) {
+		aflags |= HAS_VT;
 		nelem = cm->vattr[CMESH_ATTR_TEXCOORD].nelem;
 		if((num = dynarr_size(cm->vattr[CMESH_ATTR_TEXCOORD].data)) != cm->nverts * nelem) {
 			warning_log("texcoord array size (%d) != nverts (%d)\n", num, cm->nverts);
@@ -1346,7 +1353,7 @@ int cmesh_dump_obj_file(struct cmesh *cm, FILE *fp, int voffs)
 			fputc('f', fp);
 			for(j=0; j<3; j++) {
 				unsigned int idx = *idxptr++ + 1 + voffs;
-				fprintf(fp, " %u/%u/%u", idx, idx, idx);
+				fprintf(fp, fmtstr[aflags], idx, idx, idx);
 			}
 			fputc('\n', fp);
 		}
@@ -1356,7 +1363,7 @@ int cmesh_dump_obj_file(struct cmesh *cm, FILE *fp, int voffs)
 		for(i=0; i<numtri; i++) {
 			fputc('f', fp);
 			for(j=0; j<3; j++) {
-				fprintf(fp, " %u/%u/%u", idx, idx, idx);
+				fprintf(fp, fmtstr[aflags], idx, idx, idx);
 				++idx;
 			}
 			fputc('\n', fp);
