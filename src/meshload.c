@@ -181,6 +181,11 @@ int cmesh_load(struct cmesh *mesh, const char *fname)
 							}
 						}
 
+						if(cmesh_push_index(mesh, newidx) == -1) {
+							fprintf(stderr, "load_mesh: failed to resize index array\n");
+							goto err;
+						}
+
 						if((newfv = malloc(sizeof *newfv))) {
 							*newfv = fv;
 						}
