@@ -370,25 +370,29 @@ int cmesh_attrib_count(struct cmesh *cm, int attr)
 int cmesh_push_attrib(struct cmesh *cm, int attr, float *v)
 {
 	float *vptr;
-	int i;
-	int cursz = dynarr_size(cm->vattr[attr].data);
-	int newsz = cursz + cm->vattr[attr].nelem;
+	int i, cursz, newsz;
 
+	if(!cm->vattr[attr].nelem) {
+		cm->vattr[attr].nelem = def_nelem[attr];
+	}
+
+	cursz = dynarr_size(cm->vattr[attr].data);
+	newsz = cursz + cm->vattr[attr].nelem;
 	if(!(vptr = dynarr_resize(cm->vattr[attr].data, newsz))) {
 		return -1;
 	}
 	cm->vattr[attr].data = vptr;
 	vptr += cursz;
 
-	if(!cm->vattr[attr].nelem) {
-		cm->vattr[attr].nelem = def_nelem[attr];
-	}
-
 	for(i=0; i<cm->vattr[attr].nelem; i++) {
 		*vptr++ = *v++;
 	}
 	cm->vattr[attr].data_valid = 1;
 	cm->vattr[attr].vbo_valid = 0;
+
+	if(attr == CMESH_ATTR_VERTEX) {
+		cm->nverts = newsz / cm->vattr[attr].nelem;
+	}
 	return 0;
 }
 
@@ -509,6 +513,8 @@ int cmesh_push_index(struct cmesh *cm, unsigned int idx)
 	cm->idata = iptr;
 	cm->idata_valid = 1;
 	cm->ibo_valid = 0;
+
+	cm->nfaces = dynarr_size(cm->idata) / 3;
 	return 0;
 }
 
