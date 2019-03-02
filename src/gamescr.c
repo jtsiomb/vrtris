@@ -1,11 +1,13 @@
 #include <stdlib.h>
 #include <time.h>
 #include <assert.h>
+#include <imago2.h>
 #include "opengl.h"
 #include "game.h"
 #include "screen.h"
 #include "cmesh.h"
 #include "blocks.h"
+#include "logger.h"
 
 static int init(void);
 static void cleanup(void);
@@ -21,6 +23,7 @@ static void mouse(int bn, int pressed, int x, int y);
 static void motion(int x, int y);
 static void wheel(int dir);
 
+static void update_cur_block(void);
 static void addscore(int nlines);
 static int spawn(void);
 static int collision(int block, const int *pos);
@@ -44,7 +47,9 @@ struct game_screen game_screen = {
 	wheel
 };
 
-static struct cmesh *blkmesh;
+static struct cmesh *blkmesh, *wellmesh;
+static unsigned int tex_well;
+
 static float cam_theta, cam_phi, cam_dist = 30;
 static int bnstate[16];
 static int prev_mx, prev_my;
@@ -80,13 +85,21 @@ static const long level_speed[NUM_LEVELS] = {
 
 static int init(void)
 {
-	if(!(blkmesh = cmesh_alloc())) {
+	if(!(blkmesh = cmesh_alloc()) || cmesh_load(blkmesh, "data/noisecube.obj") == -1) {
+		error_log("failed to load block mesh\n");
 		return -1;
 	}
-	if(cmesh_load(blkmesh, "data/noisecube.obj") == -1) {
-		fprintf(stderr, "failed to load block model\n");
+
+	if(!(wellmesh = cmesh_alloc()) || cmesh_load(wellmesh, "data/well.obj") == -1) {
+		error_log("failed to load well mesh\n");
 		return -1;
 	}
+
+	if(!(tex_well = img_gltexture_load("data/grid.png"))) {
+		error_log("failed to load well texture\n");
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -188,6 +201,8 @@ static void update(float dtsec)
 		dt -= tick_interval;
 		prev_tick = time_msec;
 	}
+
+	update_cur_block();
 }
 
 static void draw(void)
@@ -196,9 +211,17 @@ static void draw(void)
 	glRotatef(cam_phi, 1, 0, 0);
 	glRotatef(cam_theta, 0, 1, 0);
 
+	glPushAttrib(GL_ENABLE_BIT);
+	glBindTexture(GL_TEXTURE_2D, tex_well);
+	glEnable(GL_TEXTURE_2D);
+	glDisable(GL_LIGHTING);
+	glColor3f(1, 1, 1);
+	cmesh_draw(wellmesh);
+	glPopAttrib();
+
 	/* center playfield */
 	glPushMatrix();
-	glTranslatef(-PF_COLS / 2, PF_ROWS / 2, 0);
+	glTranslatef(-PF_COLS / 2 + 0.5, PF_ROWS / 2 - 0.5, 0);
 
 	drawpf();
 	if(cur_block >= 0) {
@@ -223,7 +246,7 @@ static void draw_block(int block, const int *pos, int rot)
 		if(y < 0) continue;
 
 		glPushMatrix();
-		glTranslatef(x, y, 0);
+		glTranslatef(x, -y, 0);
 		cmesh_draw(blkmesh);
 		glPopMatrix();
 	}
@@ -239,7 +262,7 @@ static void drawpf(void)
 			unsigned int val = *sptr++;
 			if(val & PF_FULL) {
 				glPushMatrix();
-				glTranslatef(j, i, 0);
+				glTranslatef(j, -i, 0);
 				cmesh_draw(blkmesh);
 				glPopMatrix();
 			}
@@ -299,6 +322,7 @@ static void keyboard(int key, int pressed)
 			next_pos[0] = pos[0] + 1;
 			if(collision(cur_block, next_pos)) {
 				next_pos[0] = pos[0];
+				update_cur_block();
 				stick(cur_block, next_pos);	/* stick immediately */
 			}
 		}
@@ -312,6 +336,7 @@ static void keyboard(int key, int pressed)
 				next_pos[0]++;
 			}
 			next_pos[0]--;
+			update_cur_block();
 			stick(cur_block, next_pos);	/* stick immediately */
 		}
 		break;
@@ -376,6 +401,14 @@ static void wheel(int dir)
 {
 }
 
+static void update_cur_block(void)
+{
+	if(cur_block < 0) return;
+
+	memcpy(pos, next_pos, sizeof pos);
+	prev_rot = cur_rot;
+}
+
 static void addscore(int nlines)
 {
 	static const int stab[] = {40, 100, 300, 1200};	/* bonus per line completed */
@@ -427,6 +460,7 @@ static int collision(int block, const int *pos)
 
 		if(y < 0) continue;
 
+		if(x < 0 || x >= PF_COLS || y >= PF_ROWS) return 1;
 		if(pfield[y * PF_COLS + x] & PF_FULL) return 1;
 	}
 

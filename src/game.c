@@ -108,7 +108,7 @@ void game_display(void)
 		/* non-VR mode */
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		cgm_mperspective(proj_matrix, cgm_deg_to_rad(50.0), win_aspect, 0.5, 500.0);
+		cgm_mperspective(proj_matrix, cgm_deg_to_rad(40.0), win_aspect, 0.5, 500.0);
 		glMatrixMode(GL_PROJECTION);
 		glLoadMatrixf(proj_matrix);
 
