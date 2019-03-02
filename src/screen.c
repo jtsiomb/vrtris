@@ -30,6 +30,8 @@ int init_screens(void)
 			screen = screens[i];
 		}
 	}
+
+	screen->start();
 	return 0;
 }
 
