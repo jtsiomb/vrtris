@@ -82,6 +82,16 @@ static const long level_speed[NUM_LEVELS] = {
 	167, 151, 134, 117, 107, 98, 88, 79, 69, 60, 50
 };
 
+static const float blkcolor[][4] = {
+	{1.0, 0.65, 0.0, 1},
+	{0.16, 1.0, 0.0, 1},
+	{0.65, 0.65, 1.0, 1},
+	{1.0, 1.0, 0.0, 1},
+	{0.0, 1.0, 1.0, 1},
+	{1.0, 0.5, 1.0, 1},
+	{1.0, 0.25, 0.0, 1}
+};
+
 
 static int init(void)
 {
@@ -207,9 +217,13 @@ static void update(float dtsec)
 
 static void draw(void)
 {
+	const float lpos[] = {-1, 1, 6, 1};
+
 	glTranslatef(0, 0, -cam_dist);
 	glRotatef(cam_phi, 1, 0, 0);
 	glRotatef(cam_theta, 0, 1, 0);
+
+	glLightfv(GL_LIGHT0, GL_POSITION, lpos);
 
 	glPushAttrib(GL_ENABLE_BIT);
 	glBindTexture(GL_TEXTURE_2D, tex_well);
@@ -231,12 +245,16 @@ static void draw(void)
 	glPopMatrix();
 }
 
+static const float blkspec[] = {1, 1, 1, 1};
+
 static void draw_block(int block, const int *pos, int rot)
 {
-	int i, pal;
+	int i;
 	unsigned char *p = blocks[block][rot];
 
-	/*pal = FIRST_BLOCK_PAL + block;*/
+	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, blkcolor[block]);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, blkspec);
+	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 50.0f);
 
 	for(i=0; i<4; i++) {
 		int x = pos[1] + BLKX(*p);
@@ -260,6 +278,11 @@ static void drawpf(void)
 	for(i=0; i<PF_ROWS; i++) {
 		for(j=0; j<PF_COLS; j++) {
 			unsigned int val = *sptr++;
+
+			glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, blkcolor[val & 7]);
+			glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, blkspec);
+			glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 50.0f);
+
 			if(val & PF_FULL) {
 				glPushMatrix();
 				glTranslatef(j, -i, 0);
