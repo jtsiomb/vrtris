@@ -8,23 +8,26 @@ warn = -pedantic -Wall -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
 dbg = -g
 opt = -O0
 
-CFLAGS = $(warn) $(dbg) $(opt) `pkg-config --cflags sdl2`
-LDFLAGS = $(libsys) $(libgl) `pkg-config --libs sdl2` -ldrawtext -lgoatvr \
-		  -limago -lm
+CFLAGS = $(warn) $(dbg) $(opt) `pkg-config --cflags sdl2 freetype2`
+LDFLAGS = $(libsys) -ldrawtext $(libgl) `pkg-config --libs sdl2 freetype2` \
+		  -lgoatvr -limago -lpng -lz -ljpeg -lpthread -lm
 
 sys ?= $(shell uname -s | sed 's/MINGW.*/mingw/')
 
 ifeq ($(sys), mingw)
+	obj = $(src:.c=.w32.o)
+	dep	= $(obj:.o=.d)
+
 	bin = vrtris.exe
 
-	libgl = -lopengl32 -lglew32
-	libsys = -lmingw32 -lwinmm -mwindows
+	libgl = -lopengl32 -lglu32 -lglew32
+	libsys = -lmingw32 -lSDL2main -lwinmm -mwindows
 
 else ifeq ($(sys), Darwin)
 	libgl = -framework OpenGL -lGLEW
 
 else
-	libgl = -lGL -lGLEW
+	libgl = -lGL -lGLU -lGLEW
 endif
 
 
@@ -37,6 +40,9 @@ $(bin): $(obj)
 	@echo depfile $@
 	@$(CPP) $(CFLAGS) $< -MM -MT $(@:.d=.o) >$@
 
+%.w32.o: %.c
+	$(CC) -o $@ $(CFLAGS) -c $<
+
 .PHONY: cross
 cross:
 	$(MAKE) CC=i686-w64-mingw32-gcc sys=mingw
@@ -44,6 +50,11 @@ cross:
 .PHONY: cross-clean
 cross-clean:
 	$(MAKE) CC=i686-w64-mingw32-gcc sys=mingw clean
+
+.PHONY: instalien
+instalien: vrtris.exe
+	cp $< /alien/vrtris/$<
+	for i in `tools/dlldepends | grep -v '++'`; do echo $$i; rsync $$i /alien/vrtris; done
 
 .PHONY: clean
 clean:

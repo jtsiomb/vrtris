@@ -34,6 +34,7 @@ int game_init(int argc, char **argv)
 			return -1;
 		}
 		goatvr_set_origin_mode(GOATVR_HEAD);
+		goatvr_set_units_scale(10.0f);
 
 		goatvr_startvr();
 		should_swap = goatvr_should_swap();
@@ -151,6 +152,12 @@ void game_keyboard(int key, int pressed)
 			if(mod & MOD_ALT) {
 				game_toggle_fullscreen();
 				return;
+			}
+			break;
+
+		case KEY_HOME:
+			if(opt.flags & OPT_VR) {
+				goatvr_recenter();
 			}
 			break;
 

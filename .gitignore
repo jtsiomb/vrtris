@@ -2,3 +2,6 @@
 *.d
 *.swp
 vrtris
+*.exe
+*.dll
+data/

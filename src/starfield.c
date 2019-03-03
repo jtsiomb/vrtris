@@ -8,7 +8,7 @@
 #include "logger.h"
 
 static unsigned int tex_bolt, tex_star;
-static float star_speed = 100.0f;
+static float star_speed = 50.0f;
 static float star_depth = 1000.0f;
 static float star_size = 0.35f;
 

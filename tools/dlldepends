@@ -1,0 +1,30 @@
+#!/bin/dash
+
+depends() {
+	dlls=$(strings $1 | grep '\.dll' | grep -v '\(USER32\|KERNEL32\|msvcrt\)')
+
+	gccver=$(i686-w64-mingw32-gcc -dumpversion | awk -F . '{ print $1 "." $2 }')
+
+	libpaths="/usr/i686-w64-mingw32/lib \
+	/usr/i686-w64-mingw32/bin \
+	/usr/lib/gcc/i686-w64-mingw32/$gccver-win32"
+
+	for i in $dlls; do
+		for path in $libpaths; do
+			dllfile=$path/$i
+			if [ -f $dllfile ]; then
+				echo $dllfile
+				if [ ! "$2" = noreq ]; then
+					depends $dllfile noreq
+				fi
+			fi
+		done
+	done
+}
+
+file=vrtris.exe
+if [ -n "$1" ]; then
+	file=$1
+fi
+
+depends $file | sort | uniq
