@@ -9,6 +9,9 @@
 #include "blocks.h"
 #include "logger.h"
 
+int init_starfield(void);
+void draw_starfield(void);
+
 static int init(void);
 static void cleanup(void);
 static void start(void);
@@ -84,17 +87,24 @@ static const long level_speed[NUM_LEVELS] = {
 
 static const float blkcolor[][4] = {
 	{1.0, 0.65, 0.0, 1},
-	{0.16, 1.0, 0.0, 1},
+	{0.16, 1.0, 0.4, 1},
 	{0.65, 0.65, 1.0, 1},
-	{1.0, 1.0, 0.0, 1},
+	{1.0, 0.9, 0.1, 1},
 	{0.0, 1.0, 1.0, 1},
 	{1.0, 0.5, 1.0, 1},
-	{1.0, 0.25, 0.0, 1}
+	{1.0, 0.35, 0.2, 1},
+	{0.5, 0.5, 0.5, 1}
 };
+
+#define GAMEOVER_FILL_RATE	50
 
 
 static int init(void)
 {
+	if(init_starfield() == -1) {
+		return -1;
+	}
+
 	if(!(blkmesh = cmesh_alloc()) || cmesh_load(blkmesh, "data/noisecube.obj") == -1) {
 		error_log("failed to load block mesh\n");
 		return -1;
@@ -116,6 +126,8 @@ static int init(void)
 static void cleanup(void)
 {
 	cmesh_free(blkmesh);
+	cmesh_free(wellmesh);
+	glDeleteTextures(1, &tex_well);
 }
 
 static void start(void)
@@ -149,10 +161,9 @@ static void update(float dtsec)
 	}
 	dt = time_msec - prev_tick;
 
-	/*
 	if(gameover) {
 		int i, row = PF_ROWS - gameover;
-		int *ptr;
+		unsigned int *ptr;
 
 		if(dt < GAMEOVER_FILL_RATE) {
 			return;
@@ -161,15 +172,14 @@ static void update(float dtsec)
 		if(row >= 0) {
 			ptr = pfield + row * PF_COLS;
 			for(i=0; i<PF_COLS; i++) {
-				*ptr++ = TILE_GAMEOVER;
+				*ptr++ = PF_VIS | PF_FULL | 7;
 			}
 
 			gameover++;
-			prev_tick = msec;
+			prev_tick = time_msec;
 		}
 		return;
 	}
-	*/
 
 	if(num_complines) {
 		/* lines where completed, we're in blinking mode */
@@ -185,6 +195,7 @@ static void update(float dtsec)
 			unsigned int *ptr = pfield + complines[i] * PF_COLS;
 			for(j=0; j<PF_COLS; j++) {
 				*ptr = (*ptr & ~PF_VIS) | ((blink & 1) << PF_VIS_SHIFT);
+				ptr++;
 			}
 		}
 		return;
@@ -225,6 +236,8 @@ static void draw(void)
 
 	glLightfv(GL_LIGHT0, GL_POSITION, lpos);
 
+	draw_starfield();
+
 	glPushAttrib(GL_ENABLE_BIT);
 	glBindTexture(GL_TEXTURE_2D, tex_well);
 	glEnable(GL_TEXTURE_2D);
@@ -245,7 +258,7 @@ static void draw(void)
 	glPopMatrix();
 }
 
-static const float blkspec[] = {1, 1, 1, 1};
+static const float blkspec[] = {0.85, 0.85, 0.85, 1};
 
 static void draw_block(int block, const int *pos, int rot)
 {
@@ -283,7 +296,7 @@ static void drawpf(void)
 			glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, blkspec);
 			glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 50.0f);
 
-			if(val & PF_FULL) {
+			if((val & (PF_FULL | PF_VIS)) == (PF_FULL | PF_VIS)) {
 				glPushMatrix();
 				glTranslatef(j, -i, 0);
 				cmesh_draw(blkmesh);
