@@ -15,6 +15,7 @@ static void print_framerate(void);
 static int should_swap;
 static unsigned long framerate;
 
+
 int game_init(int argc, char **argv)
 {
 	if(init_opengl() == -1) {
@@ -58,14 +59,6 @@ void game_cleanup()
 
 static void update(float dt)
 {
-	int num_vr_sticks;
-
-	if((num_vr_sticks = goatvr_num_sticks()) > 0) {
-		float p[2];
-		goatvr_stick_pos(0, p);
-		/* TODO */
-	}
-
 	screen->update(dt);
 }
 
@@ -187,10 +180,16 @@ void game_mouse_wheel(int dir)
 
 void game_gamepad_axis(int axis, float val)
 {
+	joy_axis[axis] = val;
 }
 
 void game_gamepad_button(int bn, int pressed)
 {
+	if(pressed) {
+		joy_bnstate |= (1 << bn);
+	} else {
+		joy_bnstate &= ~(1 << bn);
+	}
 }
 
 static void calc_framerate(void)

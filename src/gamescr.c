@@ -2,12 +2,14 @@
 #include <time.h>
 #include <assert.h>
 #include <imago2.h>
+#include <goatvr.h>
 #include "opengl.h"
 #include "game.h"
 #include "screen.h"
 #include "cmesh.h"
 #include "blocks.h"
 #include "logger.h"
+#include "gameinp.h"
 
 int init_starfield(void);
 void draw_starfield(void);
@@ -144,16 +146,88 @@ static void start(void)
 	next_block = rand() % NUM_BLOCKS;
 
 	memset(pfield, 0, PF_COLS * PF_ROWS * sizeof *pfield);
+
+	ginp_repeat(500, 75, GINP_LEFT | GINP_RIGHT | GINP_DOWN);
 }
 
 static void stop(void)
 {
 }
 
+#define JTHRES	0.6
+
+#define CHECK_BUTTON(idx, gbn) \
+	if(joy_bnstate & (1 << idx)) { \
+		ginp_bnstate |= gbn; \
+	}
+
+static void update_input(float dtsec)
+{
+	int num_vr_sticks;
+
+	if((num_vr_sticks = goatvr_num_sticks()) > 0) {
+		float p[2];
+
+		goatvr_stick_pos(0, p);
+
+		if(fabs(p[0]) > fabs(joy_axis[GPAD_LSTICK_X])) {
+			joy_axis[GPAD_LSTICK_X] = p[0];
+		}
+		if(fabs(p[1]) > fabs(joy_axis[GPAD_LSTICK_Y])) {
+			joy_axis[GPAD_LSTICK_Y] = p[1];
+		}
+	}
+
+	ginp_bnstate = 0;
+
+	/* joystick axis */
+	if(joy_axis[GPAD_LSTICK_X] >= JTHRES) {
+		ginp_bnstate |= GINP_RIGHT;
+	} else if(joy_axis[GPAD_LSTICK_X] <= -JTHRES) {
+		ginp_bnstate |= GINP_LEFT;
+	}
+
+	if(joy_axis[GPAD_LSTICK_Y] >= JTHRES) {
+		ginp_bnstate |= GINP_DOWN;
+	} else if(joy_axis[GPAD_LSTICK_Y] <= -JTHRES) {
+		ginp_bnstate |= GINP_UP;
+	}
+
+	CHECK_BUTTON(GPAD_LEFT, GINP_LEFT);
+	CHECK_BUTTON(GPAD_RIGHT, GINP_RIGHT);
+	CHECK_BUTTON(GPAD_UP, GINP_UP);
+	CHECK_BUTTON(GPAD_DOWN, GINP_DOWN);
+	CHECK_BUTTON(GPAD_A, GINP_ROTATE);
+	CHECK_BUTTON(GPAD_START, GINP_PAUSE);
+
+	update_ginp();
+
+	if(GINP_PRESS(GINP_LEFT)) {
+		game_keyboard('a', 1);
+	}
+	if(GINP_PRESS(GINP_RIGHT)) {
+		game_keyboard('d', 1);
+	}
+	if(GINP_PRESS(GINP_DOWN)) {
+		game_keyboard('s', 1);
+	}
+	if(GINP_PRESS(GINP_UP)) {
+		game_keyboard('\t', 1);
+	}
+	if(GINP_PRESS(GINP_ROTATE)) {
+		game_keyboard('w', 1);
+	}
+	if(GINP_PRESS(GINP_PAUSE)) {
+		game_keyboard('p', 1);
+	}
+}
+
 static void update(float dtsec)
 {
 	static long prev_tick;
 	long dt;
+
+	update_input(dtsec);
 
 	if(pause) {
 		prev_tick = time_msec;

@@ -7,6 +7,9 @@ int vp_width, vp_height;	/* viewport size differs from win size during VR eye re
 float win_aspect;
 int fb_srgb;
 
+float joy_axis[3];
+unsigned int joy_bnstate;
+
 float view_matrix[16], proj_matrix[16];
 
 enum {
@@ -56,7 +59,17 @@ enum {
 	GPAD_UP,
 	GPAD_DOWN,
 	GPAD_LEFT,
-	GPAD_RIGHT,
+	GPAD_RIGHT
+};
+
+/* XXX make sure these match with SDL_GameControllerAxis */
+enum {
+	GPAD_LSTICK_X,
+	GPAD_LSTICK_Y,
+	GPAD_RSTICK_X,
+	GPAD_RSTICK_Y,
+	GPAD_LTRIG,
+	GPAD_RTRIG
 };
 
 int game_init(int argc, char **argv);
@@ -82,5 +95,8 @@ void game_resize(int x, int y);
 void game_fullscreen(int fs);
 void game_toggle_fullscreen(void);
 int game_is_fullscreen(void);
+
+int game_num_joy_axes(void);
+int game_num_joy_buttons(void);
 
 #endif	// GAME_H_
