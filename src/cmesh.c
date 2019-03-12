@@ -9,7 +9,8 @@
 
 struct cmesh_vattrib {
 	int nelem;	/* num elements per attribute [1, 4] */
-	float *data;	/* dynarr */
+	float *data;
+	unsigned int count;
 	unsigned int vbo;
 	int vbo_valid, data_valid;
 };
@@ -25,7 +26,8 @@ struct cmesh {
 	unsigned int buffer_objects[CMESH_NUM_ATTR + 1];
 	struct cmesh_vattrib vattr[CMESH_NUM_ATTR];
 
-	unsigned int *idata;	/* dynarr */
+	unsigned int *idata;
+	unsigned int icount;
 	unsigned int ibo;
 	int ibo_valid, idata_valid;
 
@@ -106,18 +108,10 @@ int cmesh_init(struct cmesh *cm)
 	glGenBuffers(CMESH_NUM_ATTR + 1, cm->buffer_objects);
 
 	for(i=0; i<CMESH_NUM_ATTR; i++) {
-		if(!(cm->vattr[i].data = dynarr_alloc(0, sizeof(float)))) {
-			cmesh_destroy(cm);
-			return -1;
-		}
 		cm->vattr[i].vbo = cm->buffer_objects[i];
 	}
 
 	cm->ibo = cm->buffer_objects[CMESH_NUM_ATTR];
-	if(!(cm->idata = dynarr_alloc(0, sizeof *cm->idata))) {
-		cmesh_destroy(cm);
-		return -1;
-	}
 	return 0;
 }
 
@@ -128,9 +122,9 @@ void cmesh_destroy(struct cmesh *cm)
 	free(cm->name);
 
 	for(i=0; i<CMESH_NUM_ATTR; i++) {
-		dynarr_free(cm->vattr[i].data);
+		free(cm->vattr[i].data);
 	}
-	dynarr_free(cm->idata);
+	free(cm->idata);
 
 	glDeleteBuffers(CMESH_NUM_ATTR + 1, cm->buffer_objects);
 	if(cm->wire_ibo) {
@@ -146,10 +140,14 @@ void cmesh_clear(struct cmesh *cm)
 		cm->vattr[i].nelem = 0;
 		cm->vattr[i].vbo_valid = 0;
 		cm->vattr[i].data_valid = 0;
-		cm->vattr[i].data = dynarr_clear(cm->vattr[i].data);
+		free(cm->vattr[i].data);
+		cm->vattr[i].data = 0;
+		cm->vattr[i].count = 0;
 	}
 	cm->ibo_valid = cm->idata_valid = 0;
-	cm->idata = dynarr_clear(cm->idata);
+	free(cm->idata);
+	cm->idata = 0;
+	cm->icount = 0;
 
 	cm->wire_ibo_valid = 0;
 	cm->nverts = cm->nfaces = 0;
@@ -159,7 +157,7 @@ void cmesh_clear(struct cmesh *cm)
 
 int cmesh_clone(struct cmesh *cmdest, struct cmesh *cmsrc)
 {
-	int i, num, nelem;
+	int i, nelem;
 	char *name = 0;
 	float *varr[CMESH_NUM_ATTR] = {0};
 	unsigned int *iarr = 0;
@@ -174,8 +172,7 @@ int cmesh_clone(struct cmesh *cmdest, struct cmesh *cmsrc)
 		strcpy(name, cmsrc->name);
 	}
 	if(cmesh_indexed(cmsrc)) {
-		num = dynarr_size(cmsrc->idata);
-		if(!(iarr = dynarr_alloc(num, sizeof *iarr))) {
+		if(!(iarr = malloc(cmsrc->icount * sizeof *iarr))) {
 			free(name);
 			return -1;
 		}
@@ -183,12 +180,11 @@ int cmesh_clone(struct cmesh *cmdest, struct cmesh *cmsrc)
 	for(i=0; i<CMESH_NUM_ATTR; i++) {
 		if(cmesh_has_attrib(cmsrc, i)) {
 			nelem = cmsrc->vattr[i].nelem;
-			num = dynarr_size(cmsrc->vattr[i].data);
-			if(!(varr[i] = dynarr_alloc(num * nelem, sizeof(float)))) {
+			if(!(varr[i] = malloc(cmsrc->vattr[i].count * nelem * sizeof(float)))) {
 				while(--i >= 0) {
-					dynarr_free(varr[i]);
+					free(varr[i]);
 				}
-				dynarr_free(iarr);
+				free(iarr);
 				free(name);
 				return -1;
 			}
@@ -198,16 +194,16 @@ int cmesh_clone(struct cmesh *cmdest, struct cmesh *cmsrc)
 	cmesh_clear(cmdest);
 
 	for(i=0; i<CMESH_NUM_ATTR; i++) {
-		dynarr_free(cmdest->vattr[i].data);
+		free(cmdest->vattr[i].data);
 
 		if(cmesh_has_attrib(cmsrc, i)) {
 			cmesh_attrib(cmsrc, i);	/* force validation of the actual data on the source mesh */
 
 			nelem = cmsrc->vattr[i].nelem;
 			cmdest->vattr[i].nelem = nelem;
-			num = dynarr_size(cmsrc->vattr[i].data);
 			cmdest->vattr[i].data = varr[i];
-			memcpy(cmdest->vattr[i].data, cmsrc->vattr[i].data, num * nelem * sizeof(float));
+			cmdest->vattr[i].count = cmsrc->vattr[i].count;
+			memcpy(cmdest->vattr[i].data, cmsrc->vattr[i].data, cmsrc->vattr[i].count * nelem * sizeof(float));
 			cmdest->vattr[i].data_valid = 1;
 			cmdest->vattr[i].vbo_valid = 0;
 		} else {
@@ -215,13 +211,13 @@ int cmesh_clone(struct cmesh *cmdest, struct cmesh *cmsrc)
 		}
 	}
 
-	dynarr_free(cmdest->idata);
+	free(cmdest->idata);
 	if(cmesh_indexed(cmsrc)) {
 		cmesh_index(cmsrc);	/* force validation .... */
 
-		num = dynarr_size(cmsrc->idata);
 		cmdest->idata = iarr;
-		memcpy(cmdest->idata, cmsrc->idata, num * sizeof *cmdest->idata);
+		cmdest->icount = cmsrc->icount;
+		memcpy(cmdest->idata, cmsrc->idata, cmsrc->icount * sizeof *cmdest->idata);
 		cmdest->idata_valid = 1;
 	} else {
 		cmdest->idata = 0;
@@ -290,7 +286,7 @@ float *cmesh_set_attrib(struct cmesh *cm, int attr, int nelem, unsigned int num,
 		return 0;
 	}
 
-	if(!(newarr = dynarr_alloc(num * nelem, sizeof *newarr))) {
+	if(!(newarr = malloc(num * nelem * sizeof *newarr))) {
 		return 0;
 	}
 	if(vdata) {
@@ -299,8 +295,9 @@ float *cmesh_set_attrib(struct cmesh *cm, int attr, int nelem, unsigned int num,
 
 	cm->nverts = num;
 
-	dynarr_free(cm->vattr[attr].data);
+	free(cm->vattr[attr].data);
 	cm->vattr[attr].data = newarr;
+	cm->vattr[attr].count = num * nelem;
 	cm->vattr[attr].nelem = nelem;
 	cm->vattr[attr].data_valid = 1;
 	cm->vattr[attr].vbo_valid = 0;
@@ -318,7 +315,7 @@ float *cmesh_attrib(struct cmesh *cm, int attr)
 
 const float *cmesh_attrib_ro(struct cmesh *cm, int attr)
 {
-	float *tmp;
+	void *tmp;
 	int nelem;
 
 	if(attr < 0 || attr >= CMESH_NUM_ATTR) {
@@ -335,10 +332,10 @@ const float *cmesh_attrib_ro(struct cmesh *cm, int attr)
 
 		/* local data copy unavailable, grab the data from the vbo */
 		nelem = cm->vattr[attr].nelem;
-		if(!(tmp = dynarr_resize(cm->vattr[attr].data, cm->nverts * nelem))) {
+		if(!(cm->vattr[attr].data = malloc(cm->nverts * nelem * sizeof(float)))) {
 			return 0;
 		}
-		cm->vattr[attr].data = tmp;
+		cm->vattr[attr].count = cm->nverts * nelem;
 
 		glBindBuffer(GL_ARRAY_BUFFER, cm->vattr[attr].vbo);
 		tmp = glMapBuffer(GL_ARRAY_BUFFER, GL_READ_ONLY);
@@ -377,12 +374,13 @@ int cmesh_push_attrib(struct cmesh *cm, int attr, float *v)
 		cm->vattr[attr].nelem = def_nelem[attr];
 	}
 
-	cursz = dynarr_size(cm->vattr[attr].data);
+	cursz = cm->vattr[attr].count;
 	newsz = cursz + cm->vattr[attr].nelem;
-	if(!(vptr = dynarr_resize(cm->vattr[attr].data, newsz))) {
+	if(!(vptr = realloc(cm->vattr[attr].data, newsz * sizeof(float)))) {
 		return -1;
 	}
 	cm->vattr[attr].data = vptr;
+	cm->vattr[attr].count = newsz;
 	vptr += cursz;
 
 	for(i=0; i<cm->vattr[attr].nelem; i++) {
@@ -448,15 +446,16 @@ unsigned int *cmesh_set_index(struct cmesh *cm, int num, const unsigned int *ind
 		return 0;
 	}
 
-	if(!(tmp = dynarr_alloc(num, sizeof *tmp))) {
+	if(!(tmp = malloc(num * sizeof *tmp))) {
 		return 0;
 	}
 	if(indices) {
 		memcpy(tmp, indices, num * sizeof *tmp);
 	}
 
-	dynarr_free(cm->idata);
+	free(cm->idata);
 	cm->idata = tmp;
+	cm->icount = num;
 	cm->idata_valid = 1;
 	cm->ibo_valid = 0;
 	return tmp;
@@ -483,11 +482,12 @@ const unsigned int *cmesh_index_ro(struct cmesh *cm)
 
 		/* local copy is unavailable, grab the data from the ibo */
 		nidx = cm->nfaces * 3;
-		if(!(tmp = dynarr_alloc(nidx, sizeof *cm->idata))) {
+		if(!(tmp = malloc(nidx * sizeof *cm->idata))) {
 			return 0;
 		}
-		dynarr_free(cm->idata);
+		free(cm->idata);
 		cm->idata = tmp;
+		cm->icount = nidx;
 
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cm->ibo);
 		tmp = glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_READ_ONLY);
@@ -508,14 +508,17 @@ int cmesh_index_count(struct cmesh *cm)
 int cmesh_push_index(struct cmesh *cm, unsigned int idx)
 {
 	unsigned int *iptr;
-	if(!(iptr = dynarr_push(cm->idata, &idx))) {
+	unsigned int cur_sz = cm->icount;
+	if(!(iptr = realloc(cm->idata, (cur_sz + 1) * sizeof *iptr))) {
 		return -1;
 	}
+	iptr[cur_sz] = idx;
 	cm->idata = iptr;
+	cm->icount = cur_sz + 1;
 	cm->idata_valid = 1;
 	cm->ibo_valid = 0;
 
-	cm->nfaces = dynarr_size(cm->idata) / 3;
+	cm->nfaces = cm->icount / 3;
 	return 0;
 }
 
@@ -575,11 +578,12 @@ int cmesh_append(struct cmesh *cmdest, struct cmesh *cmsrc)
 			origsz = cmdest->nverts * nelem;
 			newsz = cmdest->nverts + cmsrc->nverts * nelem;
 
-			if(!(vptr = dynarr_resize(cmdest->vattr[i].data, newsz))) {
+			if(!(vptr = realloc(cmdest->vattr[i].data, newsz * sizeof *vptr))) {
 				return -1;
 			}
 			memcpy(vptr + origsz, cmsrc->vattr[i].data, cmsrc->nverts * nelem * sizeof(float));
 			cmdest->vattr[i].data = vptr;
+			cmdest->vattr[i].count = newsz;
 		}
 	}
 
@@ -590,14 +594,15 @@ int cmesh_append(struct cmesh *cmdest, struct cmesh *cmsrc)
 		cmesh_index_ro(cmsrc);
 
 		idxoffs = cmdest->nverts;
-		origsz = dynarr_size(cmdest->idata);
-		srcsz = dynarr_size(cmsrc->idata);
+		origsz = cmdest->icount;
+		srcsz = cmsrc->icount;
 		newsz = origsz + srcsz;
 
-		if(!(iptr = dynarr_resize(cmdest->idata, newsz))) {
+		if(!(iptr = realloc(cmdest->idata, newsz * sizeof *iptr))) {
 			return -1;
 		}
 		cmdest->idata = iptr;
+		cmdest->icount = newsz;
 
 		/* copy and fixup all the new indices */
 		iptr += origsz;
@@ -621,12 +626,18 @@ int cmesh_vertex(struct cmesh *cm, float x, float y, float z)
 	cm->vattr[CMESH_ATTR_VERTEX].data_valid = 1;
 	cm->vattr[CMESH_ATTR_VERTEX].nelem = 3;
 
-	for(i=0; i<CMESH_ATTR_VERTEX; i++) {
+	for(i=0; i<CMESH_NUM_ATTR; i++) {
 		if(cm->vattr[i].data_valid) {
-			for(j=0; j<cm->vattr[CMESH_ATTR_VERTEX].nelem; j++) {
-				float *tmp = dynarr_push(cm->vattr[i].data, &cm->cur_val[i].x + j);
-				if(!tmp) return -1;
-				cm->vattr[i].data = tmp;
+			int newsz = cm->vattr[i].count + cm->vattr[i].nelem;
+			float *tmp = realloc(cm->vattr[i].data, newsz * sizeof *tmp);
+			if(!tmp) return -1;
+			tmp += cm->vattr[i].count;
+
+			cm->vattr[i].data = tmp;
+			cm->vattr[i].count = newsz;
+
+			for(j=0; j<cm->vattr[i].nelem; j++) {
+				*tmp++ = *(&cm->cur_val[i].x + j);
 			}
 		}
 		cm->vattr[i].vbo_valid = 0;
@@ -634,7 +645,9 @@ int cmesh_vertex(struct cmesh *cm, float x, float y, float z)
 	}
 
 	if(cm->idata_valid) {
-		cm->idata = dynarr_clear(cm->idata);
+		free(cm->idata);
+		cm->idata = 0;
+		cm->icount = 0;
 	}
 	cm->ibo_valid = cm->idata_valid = 0;
 	return 0;
@@ -810,7 +823,7 @@ int cmesh_explode(struct cmesh *cm)
 		if(!cmesh_has_attrib(cm, i)) continue;
 
 		srcbuf = cmesh_attrib(cm, i);
-		if(!(tmpbuf = dynarr_alloc(nnverts * cm->vattr[i].nelem, sizeof(float)))) {
+		if(!(tmpbuf = malloc(nnverts * cm->vattr[i].nelem * sizeof(float)))) {
 			return -1;
 		}
 		dstptr = tmpbuf;
@@ -824,14 +837,17 @@ int cmesh_explode(struct cmesh *cm)
 			}
 		}
 
-		dynarr_free(cm->vattr[i].data);
+		free(cm->vattr[i].data);
 		cm->vattr[i].data = tmpbuf;
+		cm->vattr[i].count = nnverts * cm->vattr[i].nelem;
 		cm->vattr[i].data_valid = 1;
 	}
 
 	cm->ibo_valid = 0;
 	cm->idata_valid = 0;
-	cm->idata = dynarr_clear(cm->idata);
+	free(cm->idata);
+	cm->idata = 0;
+	cm->icount = 0;
 
 	cm->nverts = nnverts;
 	cm->nfaces = idxnum / 3;
@@ -1311,7 +1327,7 @@ int cmesh_dump_obj_file(struct cmesh *cm, FILE *fp, int voffs)
 
 
 	nelem = cm->vattr[CMESH_ATTR_VERTEX].nelem;
-	if((num = dynarr_size(cm->vattr[CMESH_ATTR_VERTEX].data)) != cm->nverts * nelem) {
+	if((num = cm->vattr[CMESH_ATTR_VERTEX].count) != cm->nverts * nelem) {
 		warning_log("vertex array size (%d) != nverts (%d)\n", num, cm->nverts);
 	}
 	for(i=0; i<cm->nverts; i++) {
@@ -1322,7 +1338,7 @@ int cmesh_dump_obj_file(struct cmesh *cm, FILE *fp, int voffs)
 	if(cmesh_has_attrib(cm, CMESH_ATTR_NORMAL)) {
 		aflags |= HAS_VN;
 		nelem = cm->vattr[CMESH_ATTR_NORMAL].nelem;
-		if((num = dynarr_size(cm->vattr[CMESH_ATTR_NORMAL].data)) != cm->nverts * nelem) {
+		if((num = cm->vattr[CMESH_ATTR_NORMAL].count) != cm->nverts * nelem) {
 			warning_log("normal array size (%d) != nverts (%d)\n", num, cm->nverts);
 		}
 		for(i=0; i<cm->nverts; i++) {
@@ -1334,7 +1350,7 @@ int cmesh_dump_obj_file(struct cmesh *cm, FILE *fp, int voffs)
 	if(cmesh_has_attrib(cm, CMESH_ATTR_TEXCOORD)) {
 		aflags |= HAS_VT;
 		nelem = cm->vattr[CMESH_ATTR_TEXCOORD].nelem;
-		if((num = dynarr_size(cm->vattr[CMESH_ATTR_TEXCOORD].data)) != cm->nverts * nelem) {
+		if((num = cm->vattr[CMESH_ATTR_TEXCOORD].count) != cm->nverts * nelem) {
 			warning_log("texcoord array size (%d) != nverts (%d)\n", num, cm->nverts);
 		}
 		for(i=0; i<cm->nverts; i++) {

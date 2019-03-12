@@ -319,6 +319,7 @@ static void keyboard(int key, int pressed)
 
 	switch(key) {
 	case 'a':
+	case KEY_LEFT:
 		if(!pause) {
 			next_pos[1] = pos[1] - 1;
 			if(collision(cur_block, next_pos)) {
@@ -330,6 +331,7 @@ static void keyboard(int key, int pressed)
 		break;
 
 	case 'd':
+	case KEY_RIGHT:
 		if(!pause) {
 			next_pos[1] = pos[1] + 1;
 			if(collision(cur_block, next_pos)) {
@@ -341,6 +343,8 @@ static void keyboard(int key, int pressed)
 		break;
 
 	case 'w':
+	case KEY_UP:
+	case ' ':
 		if(!pause) {
 			prev_rot = cur_rot;
 			cur_rot = (cur_rot + 1) & 3;
@@ -353,6 +357,7 @@ static void keyboard(int key, int pressed)
 		break;
 
 	case 's':
+	case KEY_DOWN:
 		/* ignore drops until the first update after a spawn */
 		if(cur_block >= 0 && !just_spawned && !pause) {
 			next_pos[0] = pos[0] + 1;
@@ -366,6 +371,7 @@ static void keyboard(int key, int pressed)
 
 	case '\n':
 	case '\t':
+	case '0':
 		if(!pause && cur_block >= 0) {
 			next_pos[0] = pos[0] + 1;
 			while(!collision(cur_block, next_pos)) {

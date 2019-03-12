@@ -3,7 +3,6 @@
 
 #include <stdio.h>
 #include <cgmath/cgmath.h>
-#include "dynarr.h"
 
 enum {
 	CMESH_ATTR_VERTEX,
