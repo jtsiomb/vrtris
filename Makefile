@@ -1,16 +1,26 @@
+# options -------------------------------------------------
+vrbuild = true
+# ---------------------------------------------------------
+
 src = $(wildcard src/*.c)
 obj = $(src:.c=.o)
 dep = $(obj:.o=.d)
-bin = vrtris
 
+ifeq ($(vrbuild), true)
+	bin = vrtris
+	vr_ldflags = -lgoatvr
+	vr_cflags = -DBUILD_VR
+else
+	bin = gltris
+endif
 
 warn = -pedantic -Wall -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
 dbg = -g
 opt = -O0
 
-CFLAGS = $(warn) $(dbg) $(opt) `pkg-config --cflags sdl2 freetype2`
+CFLAGS = $(warn) $(dbg) $(opt) `pkg-config --cflags sdl2 freetype2` $(vr_cflags)
 LDFLAGS = $(libsys) -ldrawtext $(libgl) `pkg-config --libs sdl2 freetype2` \
-		  -lgoatvr -limago -lpng -lz -ljpeg -lpthread -lm
+		  $(vr_ldflags) -limago -lpng -lz -ljpeg -lpthread -lm
 
 sys ?= $(shell uname -s | sed 's/MINGW.*/mingw/')
 

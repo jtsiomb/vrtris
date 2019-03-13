@@ -2,6 +2,7 @@
 *.d
 *.swp
 vrtris
+gltris
 *.exe
 *.dll
 data/

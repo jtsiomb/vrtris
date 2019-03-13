@@ -9,7 +9,9 @@ struct options def_opt = { 1024, 768, 0, "game" };
 
 enum {
 	OPTCFG_SIZE,
+#ifdef BUILD_VR
 	OPTCFG_VR,
+#endif
 	OPTCFG_FULLSCREEN,
 	OPTCFG_WINDOWED,
 	OPTCFG_SCREEN,
@@ -19,7 +21,9 @@ enum {
 static struct optcfg_option options[] = {
 	// short, long, id, desc
 	{'s', "size", OPTCFG_SIZE, "window size (WxH)"},
+#ifdef BUILD_VR
 	{0, "vr", OPTCFG_VR, "enable VR mode"},
+#endif
 	{'f', "fullscreen", OPTCFG_FULLSCREEN, "run in fullscreen mode"},
 	{'w', "windowed", OPTCFG_WINDOWED, "run in windowed mode"},
 	{0, "screen", OPTCFG_SCREEN, "select starting screen"},
@@ -84,6 +88,7 @@ static int opt_handler(struct optcfg *oc, int optid, void *cls)
 		}
 		break;
 
+#ifdef BUILD_VR
 	case OPTCFG_VR:
 		if(is_enabled(oc)) {
 			opt.flags |= OPT_VR;
@@ -91,6 +96,7 @@ static int opt_handler(struct optcfg *oc, int optid, void *cls)
 			opt.flags &= ~OPT_VR;
 		}
 		break;
+#endif
 
 	case OPTCFG_FULLSCREEN:
 		if(is_enabled(oc)) {

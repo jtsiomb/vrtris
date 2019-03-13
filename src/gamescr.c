@@ -2,7 +2,9 @@
 #include <time.h>
 #include <assert.h>
 #include <imago2.h>
+#ifdef BUILD_VR
 #include <goatvr.h>
+#endif
 #include "opengl.h"
 #include "game.h"
 #include "screen.h"
@@ -164,6 +166,7 @@ static void stop(void)
 
 static void update_input(float dtsec)
 {
+#ifdef BUILD_VR
 	int num_vr_sticks;
 
 	if((num_vr_sticks = goatvr_num_sticks()) > 0) {
@@ -178,6 +181,7 @@ static void update_input(float dtsec)
 			joy_axis[GPAD_LSTICK_Y] = p[1];
 		}
 	}
+#endif	/* BUILD_VR */
 
 	ginp_bnstate = 0;
 

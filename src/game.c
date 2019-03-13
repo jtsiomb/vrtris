@@ -1,5 +1,7 @@
 #include <assert.h>
+#ifdef BUILD_VR
 #include <goatvr.h>
+#endif
 #include <cgmath/cgmath.h>
 #include "opengl.h"
 #include "game.h"
@@ -12,7 +14,9 @@
 static void calc_framerate(void);
 static void print_framerate(void);
 
+#ifdef BUILD_VR
 static int should_swap;
+#endif
 static unsigned long framerate;
 
 
@@ -30,6 +34,7 @@ int game_init(int argc, char **argv)
 		return -1;
 	}
 
+#ifdef BUILD_VR
 	if(opt.flags & OPT_VR) {
 		if(goatvr_init() == -1) {
 			return -1;
@@ -40,6 +45,7 @@ int game_init(int argc, char **argv)
 		goatvr_startvr();
 		should_swap = goatvr_should_swap();
 	}
+#endif	/* BUILD_VR */
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
@@ -51,9 +57,11 @@ int game_init(int argc, char **argv)
 
 void game_cleanup()
 {
+#ifdef BUILD_VR
 	if(opt.flags & OPT_VR) {
 		goatvr_shutdown();
 	}
+#endif
 	cleanup_screens();
 }
 
@@ -65,13 +73,14 @@ static void update(float dt)
 void game_display(void)
 {
 	static long prev_msec;
-	int i;
 	float dt = (float)(time_msec - prev_msec) / 1000.0f;
 	prev_msec = time_msec;
 
 	update(dt);
 
+#ifdef BUILD_VR
 	if(opt.flags & OPT_VR) {
+		int i;
 		goatvr_draw_start();
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -98,7 +107,9 @@ void game_display(void)
 			game_swap_buffers();
 		}
 
-	} else {
+	} else
+#endif	/* BUILD_VR */
+	{
 		/* non-VR mode */
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -125,7 +136,9 @@ void game_display(void)
 void game_reshape(int x, int y)
 {
 	glViewport(0, 0, x, y);
+#ifdef BUILD_VR
 	goatvr_set_fb_size(x, y, 1.0f);
+#endif
 
 	reshape_screens(x, y);
 }
@@ -149,9 +162,11 @@ void game_keyboard(int key, int pressed)
 			break;
 
 		case KEY_HOME:
+#ifdef BUILD_VR
 			if(opt.flags & OPT_VR) {
 				goatvr_recenter();
 			}
+#endif
 			break;
 
 		default:
