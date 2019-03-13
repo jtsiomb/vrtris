@@ -302,7 +302,9 @@ static void update(float dtsec)
 
 static void draw(void)
 {
-	const float lpos[] = {-1, 1, 6, 1};
+	static const int nextblk_pos[] = {0, 0};
+	static const float lpos[] = {-1, 1, 6, 1};
+	float t;
 
 	glTranslatef(0, 0, -cam_dist);
 	glRotatef(cam_phi, 1, 0, 0);
@@ -328,8 +330,15 @@ static void draw(void)
 	if(cur_block >= 0) {
 		draw_block(cur_block, pos, cur_rot);
 	}
-
 	glPopMatrix();
+
+	t = (float)time_msec / 1000.0f;
+	glTranslatef(-PF_COLS / 2 + 0.5 + PF_COLS + 3, PF_ROWS / 2 - 0.5, 0);
+	glTranslatef(1.5, -1, 0);
+	glRotatef(cos(t) * 8.0f, 1, 0, 0);
+	glRotatef(sin(t * 1.2f) * 10.0f, 0, 1, 0);
+	glTranslatef(-1.5, 1, 0);
+	draw_block(next_block, nextblk_pos, 0);
 }
 
 static const float blkspec[] = {0.85, 0.85, 0.85, 1};

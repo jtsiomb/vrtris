@@ -67,7 +67,7 @@ static void GLAPIENTRY gldebug_logger(GLenum src, GLenum type, GLuint id, GLenum
 	case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
 	case GL_DEBUG_TYPE_PORTABILITY:
 	case GL_DEBUG_TYPE_PERFORMANCE:
-		warning_log(fmt, gldebug_srcstr(src), gldebug_typestr(type), msg);
+		debug_log(fmt, gldebug_srcstr(src), gldebug_typestr(type), msg);
 		break;
 
 	default:
