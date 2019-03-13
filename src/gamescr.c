@@ -10,6 +10,7 @@
 #include "blocks.h"
 #include "logger.h"
 #include "gameinp.h"
+#include "color.h"
 
 int init_starfield(void);
 void draw_starfield(void);
@@ -20,7 +21,7 @@ static void start(void);
 static void stop(void);
 static void update(float dt);
 static void draw(void);
-static void draw_block(int block, const int *pos, int rot);
+static void draw_block(int block, const int *pos, int rot, float sat, float alpha);
 static void drawpf(void);
 static void reshape(int x, int y);
 static void keyboard(int key, int pressed);
@@ -328,27 +329,41 @@ static void draw(void)
 
 	drawpf();
 	if(cur_block >= 0) {
-		draw_block(cur_block, pos, cur_rot);
+		draw_block(cur_block, pos, cur_rot, 1.0f, 1.0f);
 	}
 	glPopMatrix();
 
+	glPushAttrib(GL_ENABLE_BIT);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glPushMatrix();
 	t = (float)time_msec / 1000.0f;
 	glTranslatef(-PF_COLS / 2 + 0.5 + PF_COLS + 3, PF_ROWS / 2 - 0.5, 0);
 	glTranslatef(1.5, -1, 0);
 	glRotatef(cos(t) * 8.0f, 1, 0, 0);
 	glRotatef(sin(t * 1.2f) * 10.0f, 0, 1, 0);
 	glTranslatef(-1.5, 1, 0);
-	draw_block(next_block, nextblk_pos, 0);
+	draw_block(next_block, nextblk_pos, 0, 0.25f, 0.75f);
+	glPopMatrix();
+
+	glPopAttrib();
 }
 
 static const float blkspec[] = {0.85, 0.85, 0.85, 1};
 
-static void draw_block(int block, const int *pos, int rot)
+static void draw_block(int block, const int *pos, int rot, float sat, float alpha)
 {
 	int i;
 	unsigned char *p = blocks[block][rot];
+	float col[4], hsv[3];
 
-	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, blkcolor[block]);
+	rgb_to_hsv(blkcolor[block][0], blkcolor[block][1], blkcolor[block][2],
+			hsv, hsv + 1, hsv + 2);
+	hsv_to_rgb(hsv[0], hsv[1] * sat, hsv[2], col, col + 1, col + 2);
+	col[3] = alpha;
+
+	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, col);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, blkspec);
 	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 50.0f);
 
