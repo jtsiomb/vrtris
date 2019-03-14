@@ -4,7 +4,7 @@ vrtris - tetris in virtual reality
 VRtris is a tetris game in VR. Put on your HMD, grab a cool drink (ideally with
 some kind of straw), and enjoy retro puzzle gaming at its finest!
 
-Alternatively you can build this as a regular OpenGL tetris game (`gltris`), by
+Alternatively you can build this as a regular OpenGL tetris game (gltris), by
 choosing to disable VR at compile-time.
 
 Status
