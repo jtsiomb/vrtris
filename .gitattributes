@@ -1,0 +1,4 @@
+data/*.obj filter=lfs diff=lfs merge=lfs -text
+data/*.png filter=lfs diff=lfs merge=lfs -text
+data/*.font filter=lfs diff=lfs merge=lfs -text
+data/*.mtl filter=lfs diff=lfs merge=lfs -text
