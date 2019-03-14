@@ -388,7 +388,7 @@ static void draw(void)
 	glEnable(GL_COLOR_MATERIAL);
 	glBindTexture(GL_TEXTURE_2D, tex_well);
 	glEnable(GL_TEXTURE_2D);
-	//glDisable(GL_LIGHTING);
+	glDisable(GL_LIGHTING);
 	glColor3f(1, 1, 1);
 	cmesh_draw(wellmesh);
 	glPopAttrib();
