@@ -40,7 +40,6 @@ int game_init(int argc, char **argv)
 			return -1;
 		}
 		goatvr_set_origin_mode(GOATVR_HEAD);
-		goatvr_set_units_scale(10.0f);
 
 		goatvr_startvr();
 		should_swap = goatvr_should_swap();
@@ -77,13 +76,13 @@ void game_display(void)
 	float dt = (float)(time_msec - prev_msec) / 1000.0f;
 	prev_msec = time_msec;
 
-	update(dt);
-
 #ifdef BUILD_VR
 	if(opt.flags & OPT_VR) {
 		int i;
 		goatvr_draw_start();
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		update(dt);
 
 		for(i=0; i<2; i++) {
 			/* for each eye */
@@ -113,6 +112,8 @@ void game_display(void)
 	{
 		/* non-VR mode */
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		update(dt);
 
 		cgm_mperspective(proj_matrix, cgm_deg_to_rad(40.0), win_aspect, 0.5, 500.0);
 		glMatrixMode(GL_PROJECTION);

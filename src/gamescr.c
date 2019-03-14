@@ -63,8 +63,9 @@ static unsigned int tex_well;
 
 static struct dtx_font *scorefont;
 
-static float cam_theta, cam_phi = -15, cam_dist = 30;
-static int bnstate[16];
+static float cam_theta, cam_phi, cam_dist;
+static float cam_height;
+static unsigned int bnstate;
 static int prev_mx, prev_my;
 
 static long tick_interval;
@@ -91,6 +92,7 @@ static int just_spawned;
 
 #ifdef BUILD_VR
 static int vrbn_a = 0, vrbn_x = 4;
+static float vrscale = 40.0f;
 #endif
 
 #define NUM_LEVELS	21
@@ -156,6 +158,8 @@ static void start(void)
 {
 	srand(time(0));
 
+	glClearColor(0.12, 0.12, 0.18, 1);
+
 	pause = 0;
 	gameover = 0;
 	num_complines = 0;
@@ -171,21 +175,34 @@ static void start(void)
 
 	dtx_use_font(scorefont, FONTSZ);
 
+	cam_theta = 0;
+	cam_phi = 0;
+	cam_dist = 30;
+	cam_height = 0;
+
 #ifdef BUILD_VR
 	if(goatvr_invr()) {
 		int bn = goatvr_lookup_button("A");
 		if(bn >= 0) vrbn_a = bn;
-		debug_log("lookup button A: %d\n", bn);
 
 		bn = goatvr_lookup_button("X");
 		if(bn >= 0) vrbn_x = bn;
-		debug_log("lookup button X: %d\n", bn);
+
+		/* switch to VR-optimized camera parameters */
+		cam_theta = 0;
+		cam_phi = -2.5;
+		cam_dist = 20;
+		cam_height = 3.5;
+		vrscale = 40.0f;
+
+		goatvr_set_units_scale(vrscale);
 	}
 #endif
 }
 
 static void stop(void)
 {
+	goatvr_set_units_scale(1.0f);
 }
 
 #define JTHRES	0.6
@@ -200,10 +217,11 @@ static void update_input(float dtsec)
 #ifdef BUILD_VR
 	int num_vr_sticks;
 
-	if((num_vr_sticks = goatvr_num_sticks()) > 0) {
+	if(goatvr_invr() && (num_vr_sticks = goatvr_num_sticks()) > 0) {
 		float p[2];
 
 		goatvr_stick_pos(0, p);
+		p[1] *= 0.65;	/* drops harder to trigger accidentally */
 
 		if(fabs(p[0]) > fabs(joy_axis[GPAD_LSTICK_X])) {
 			joy_axis[GPAD_LSTICK_X] = p[0];
@@ -213,13 +231,13 @@ static void update_input(float dtsec)
 		}
 
 		if(goatvr_button_state(vrbn_a)) {
-			joy_bnstate |= GPAD_A;
+			joy_bnstate |= 1 << GPAD_A;
 		}
 		if(goatvr_button_state(vrbn_x)) {
-			joy_bnstate |= GPAD_START;
+			joy_bnstate |= 1 << GPAD_START;
 		}
 		if(goatvr_action(0, GOATVR_ACTION_TRIGGER) || goatvr_action(1, GOATVR_ACTION_TRIGGER)) {
-			joy_bnstate |= GPAD_UP;
+			joy_bnstate |= 1 << GPAD_UP;
 		}
 	}
 #endif	/* BUILD_VR */
@@ -269,6 +287,7 @@ static void update_input(float dtsec)
 
 #ifdef BUILD_VR
 	memset(joy_axis, 0, sizeof joy_axis);
+	joy_bnstate = 0;
 #endif
 }
 
@@ -359,15 +378,17 @@ static void draw(void)
 	glTranslatef(0, 0, -cam_dist);
 	glRotatef(cam_phi, 1, 0, 0);
 	glRotatef(cam_theta, 0, 1, 0);
+	glTranslatef(0, -cam_height, 0);
 
 	glLightfv(GL_LIGHT0, GL_POSITION, lpos);
 
 	draw_starfield();
 
 	glPushAttrib(GL_ENABLE_BIT);
+	glEnable(GL_COLOR_MATERIAL);
 	glBindTexture(GL_TEXTURE_2D, tex_well);
 	glEnable(GL_TEXTURE_2D);
-	glDisable(GL_LIGHTING);
+	//glDisable(GL_LIGHTING);
 	glColor3f(1, 1, 1);
 	cmesh_draw(wellmesh);
 	glPopAttrib();
@@ -594,7 +615,11 @@ static void keyboard(int key, int pressed)
 
 static void mouse(int bn, int pressed, int x, int y)
 {
-	bnstate[bn] = pressed;
+	if(pressed) {
+		bnstate |= 1 << bn;
+	} else {
+		bnstate &= ~(1 << bn);
+	}
 	prev_mx = x;
 	prev_my = y;
 }
@@ -606,21 +631,39 @@ static void motion(int x, int y)
 	prev_mx = x;
 	prev_my = y;
 
-	if(bnstate[0]) {
+	if(bnstate & 1) {
 		cam_theta += dx * 0.5;
 		cam_phi += dy * 0.5;
 
 		if(cam_phi < -90) cam_phi = -90;
 		if(cam_phi > 90) cam_phi = 90;
 	}
-	if(bnstate[2]) {
+	if(bnstate & 2) {
+		cam_height += dy * 0.1;
+	}
+	if(bnstate & 4) {
 		cam_dist += dy * 0.1;
 		if(cam_dist < 0) cam_dist = 0;
 	}
+
+#ifdef DBG_PRINT_VIEW
+	if(bnstate) {
+		debug_log("Camera params\n");
+		debug_log("  theta: %g  phi: %g  dist: %g  height: %g\n", cam_theta,
+				cam_phi, cam_dist, cam_height);
+	}
+#endif
 }
 
 static void wheel(int dir)
 {
+	/* debug code, used to figure out the best scales */
+	/*
+	vrscale += dir * 0.01;
+	if(vrscale < 0.01) vrscale = 0.01;
+	goatvr_set_units_scale(vrscale);
+	debug_log("VR scale: %g\n", vrscale);
+	*/
 }
 
 static void update_cur_block(void)

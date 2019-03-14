@@ -20,7 +20,7 @@ static float star_lenxy[STAR_COUNT];
 int init_starfield(void)
 {
 	int i;
-	float width;
+	float width, excl_rad;
 
 	if(!(tex_star = img_gltexture_load("data/pimg.png"))) {
 		error_log("failed to load star texture\n");
@@ -32,10 +32,15 @@ int init_starfield(void)
 	}
 
 	width = star_depth / 4.0f;
+	excl_rad = 10.0f / width;
 	for(i=0; i<STAR_COUNT; i++) {
-		float x = (2.0f * rand() / RAND_MAX) - 1.0;
-		float y = (2.0f * rand() / RAND_MAX) - 1.0;
-		float z = (float)rand() / RAND_MAX;
+		float x, y, z;
+
+		do {
+			x = (2.0f * rand() / RAND_MAX) - 1.0;
+			y = (2.0f * rand() / RAND_MAX) - 1.0;
+		} while(x * x + y * y < excl_rad * excl_rad);
+		z = (float)rand() / RAND_MAX;
 
 		cgm_vcons(star + i, x * width, y * width, z * star_depth);
 		star_lenxy[i] = sqrt(star[i].x * star[i].x + star[i].y * star[i].y);
