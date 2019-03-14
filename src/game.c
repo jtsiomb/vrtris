@@ -52,6 +52,7 @@ int game_init(int argc, char **argv)
 	glEnable(GL_LIGHTING);
 	glEnable(GL_LIGHT0);
 
+	screen->start();
 	return 0;
 }
 

@@ -31,7 +31,7 @@ ifeq ($(sys), mingw)
 	bin = vrtris.exe
 
 	libgl = -lopengl32 -lglu32 -lglew32
-	libsys = -lmingw32 -lSDL2main -lwinmm -mwindows
+	libsys = -lmingw32 -lSDL2main -lwinmm -mconsole
 
 else ifeq ($(sys), Darwin)
 	libgl = -framework OpenGL -lGLEW

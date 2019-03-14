@@ -5,6 +5,7 @@
 #ifdef BUILD_VR
 #include <goatvr.h>
 #endif
+#include <drawtext.h>
 #include "opengl.h"
 #include "game.h"
 #include "screen.h"
@@ -13,6 +14,8 @@
 #include "logger.h"
 #include "gameinp.h"
 #include "color.h"
+
+#define FONTSZ	75
 
 int init_starfield(void);
 void draw_starfield(void);
@@ -58,7 +61,9 @@ struct game_screen game_screen = {
 static struct cmesh *blkmesh, *wellmesh;
 static unsigned int tex_well;
 
-static float cam_theta, cam_phi, cam_dist = 30;
+static struct dtx_font *scorefont;
+
+static float cam_theta, cam_phi = -15, cam_dist = 30;
 static int bnstate[16];
 static int prev_mx, prev_my;
 
@@ -84,6 +89,10 @@ static int pause;
 static int score, level, lines;
 static int just_spawned;
 
+#ifdef BUILD_VR
+static int vrbn_a = 0, vrbn_x = 4;
+#endif
+
 #define NUM_LEVELS	21
 static const long level_speed[NUM_LEVELS] = {
 	887, 820, 753, 686, 619, 552, 469, 368, 285, 184,
@@ -106,6 +115,13 @@ static const float blkcolor[][4] = {
 
 static int init(void)
 {
+	if(!(scorefont = dtx_open_font("data/score.font", 0))) {
+		error_log("failed to open score font\n");
+		return -1;
+	}
+	dtx_prepare_range(scorefont, FONTSZ, 32, 127);
+	dtx_save_glyphmap("foo.ppm", dtx_get_glyphmap(scorefont, 0));
+
 	if(init_starfield() == -1) {
 		return -1;
 	}
@@ -133,6 +149,7 @@ static void cleanup(void)
 	cmesh_free(blkmesh);
 	cmesh_free(wellmesh);
 	glDeleteTextures(1, &tex_well);
+	dtx_close_font(scorefont);
 }
 
 static void start(void)
@@ -151,6 +168,20 @@ static void start(void)
 	memset(pfield, 0, PF_COLS * PF_ROWS * sizeof *pfield);
 
 	ginp_repeat(500, 75, GINP_LEFT | GINP_RIGHT | GINP_DOWN);
+
+	dtx_use_font(scorefont, FONTSZ);
+
+#ifdef BUILD_VR
+	if(goatvr_invr()) {
+		int bn = goatvr_lookup_button("A");
+		if(bn >= 0) vrbn_a = bn;
+		debug_log("lookup button A: %d\n", bn);
+
+		bn = goatvr_lookup_button("X");
+		if(bn >= 0) vrbn_x = bn;
+		debug_log("lookup button X: %d\n", bn);
+	}
+#endif
 }
 
 static void stop(void)
@@ -178,7 +209,17 @@ static void update_input(float dtsec)
 			joy_axis[GPAD_LSTICK_X] = p[0];
 		}
 		if(fabs(p[1]) > fabs(joy_axis[GPAD_LSTICK_Y])) {
-			joy_axis[GPAD_LSTICK_Y] = p[1];
+			joy_axis[GPAD_LSTICK_Y] = -p[1];
+		}
+
+		if(goatvr_button_state(vrbn_a)) {
+			joy_bnstate |= GPAD_A;
+		}
+		if(goatvr_button_state(vrbn_x)) {
+			joy_bnstate |= GPAD_START;
+		}
+		if(goatvr_action(0, GOATVR_ACTION_TRIGGER) || goatvr_action(1, GOATVR_ACTION_TRIGGER)) {
+			joy_bnstate |= GPAD_UP;
 		}
 	}
 #endif	/* BUILD_VR */
@@ -225,6 +266,10 @@ static void update_input(float dtsec)
 	if(GINP_PRESS(GINP_PAUSE)) {
 		game_keyboard('p', 1);
 	}
+
+#ifdef BUILD_VR
+	memset(joy_axis, 0, sizeof joy_axis);
+#endif
 }
 
 static void update(float dtsec)
@@ -350,7 +395,40 @@ static void draw(void)
 	glTranslatef(-1.5, 1, 0);
 	draw_block(next_block, nextblk_pos, 0, 0.25f, 0.75f);
 	glPopMatrix();
+	glPopAttrib();
 
+	glPushAttrib(GL_ENABLE_BIT);
+	glDisable(GL_LIGHTING);
+
+	glPushMatrix();
+	glTranslatef(-11, 6, 0);
+	glScalef(0.05, 0.05, 0.05);
+
+	glColor3f(1, 1, 1);
+	dtx_string("Score");
+	glTranslatef(0, -dtx_line_height() * 1.5, 0);
+	glPushMatrix();
+	glScalef(1.5, 1.5, 1.5);
+	dtx_printf("%d", score);
+	glPopMatrix();
+
+	glTranslatef(0, -dtx_line_height() * 2, 0);
+	dtx_string("Level");
+	glTranslatef(0, -dtx_line_height() * 1.5, 0);
+	glPushMatrix();
+	glScalef(1.5, 1.5, 1.5);
+	dtx_printf("%d", level);
+	glPopMatrix();
+
+	glTranslatef(0, -dtx_line_height() * 2, 0);
+	dtx_string("Lines");
+	glTranslatef(0, -dtx_line_height() * 1.5, 0);
+	glPushMatrix();
+	glScalef(1.5, 1.5, 1.5);
+	dtx_printf("%d", lines);
+	glPopMatrix();
+
+	glPopMatrix();
 	glPopAttrib();
 }
 
