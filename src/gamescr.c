@@ -200,7 +200,9 @@ static void start(void)
 
 static void stop(void)
 {
+#ifdef BUILD_VR
 	goatvr_set_units_scale(1.0f);
+#endif
 }
 
 #define JTHRES	0.6
