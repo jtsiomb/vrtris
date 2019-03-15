@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <time.h>
+#include <limits.h>
 #include <assert.h>
 #include <imago2.h>
 #ifdef BUILD_VR
@@ -91,7 +92,7 @@ static int score, level, lines;
 static int just_spawned;
 
 #ifdef BUILD_VR
-static int vrbn_a = 0, vrbn_x = 4;
+static int vrbn_a = 0, vrbn_b = 1, vrbn_x = 4;
 static float vrscale = 40.0f;
 #endif
 
@@ -182,7 +183,8 @@ static void start(void)
 	if(goatvr_invr()) {
 		int bn = goatvr_lookup_button("A");
 		if(bn >= 0) vrbn_a = bn;
-
+		bn = goatvr_lookup_button("B");
+		if(bn >= 0) vrbn_b = bn;
 		bn = goatvr_lookup_button("X");
 		if(bn >= 0) vrbn_x = bn;
 
@@ -216,9 +218,14 @@ static void update_input(float dtsec)
 {
 #ifdef BUILD_VR
 	int num_vr_sticks;
+	float orig_joy_axis[3];
+	unsigned int orig_joy_bnstate = UINT_MAX;
 
 	if(goatvr_invr() && (num_vr_sticks = goatvr_num_sticks()) > 0) {
 		float p[2];
+
+		memcpy(orig_joy_axis, joy_axis, sizeof orig_joy_axis);
+		orig_joy_bnstate = joy_bnstate;
 
 		goatvr_stick_pos(0, p);
 		p[1] *= 0.65;	/* drops harder to trigger accidentally */
@@ -232,6 +239,9 @@ static void update_input(float dtsec)
 
 		if(goatvr_button_state(vrbn_a)) {
 			joy_bnstate |= 1 << GPAD_A;
+		}
+		if(goatvr_button_state(vrbn_b)) {
+			joy_bnstate |= 1 << GPAD_B;
 		}
 		if(goatvr_button_state(vrbn_x)) {
 			joy_bnstate |= 1 << GPAD_START;
@@ -262,6 +272,7 @@ static void update_input(float dtsec)
 	CHECK_BUTTON(GPAD_UP, GINP_UP);
 	CHECK_BUTTON(GPAD_DOWN, GINP_DOWN);
 	CHECK_BUTTON(GPAD_A, GINP_ROTATE);
+	CHECK_BUTTON(GPAD_B, GINP_ROTATE);
 	CHECK_BUTTON(GPAD_START, GINP_PAUSE);
 
 	update_ginp();
@@ -286,8 +297,10 @@ static void update_input(float dtsec)
 	}
 
 #ifdef BUILD_VR
-	memset(joy_axis, 0, sizeof joy_axis);
-	joy_bnstate = 0;
+	if(orig_joy_bnstate != UINT_MAX) {
+		memset(joy_axis, 0, sizeof joy_axis);
+		joy_bnstate = 0;
+	}
 #endif
 }
 
@@ -414,7 +427,7 @@ static void draw(void)
 	glRotatef(cos(t) * 8.0f, 1, 0, 0);
 	glRotatef(sin(t * 1.2f) * 10.0f, 0, 1, 0);
 	glTranslatef(-1.5, 1, 0);
-	draw_block(next_block, nextblk_pos, 0, 0.25f, 0.75f);
+	draw_block(next_block, nextblk_pos, 0, 0.4f, 0.75f);
 	glPopMatrix();
 	glPopAttrib();
 
