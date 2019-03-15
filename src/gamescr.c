@@ -15,7 +15,7 @@
 #include "gameinp.h"
 #include "color.h"
 
-#define FONTSZ	75
+#define FONTSZ	54
 
 int init_starfield(void);
 void draw_starfield(void);
@@ -172,8 +172,6 @@ static void start(void)
 	memset(pfield, 0, PF_COLS * PF_ROWS * sizeof *pfield);
 
 	ginp_repeat(500, 75, GINP_LEFT | GINP_RIGHT | GINP_DOWN);
-
-	dtx_use_font(scorefont, FONTSZ);
 
 	cam_theta = 0;
 	cam_phi = 0;
@@ -418,12 +416,13 @@ static void draw(void)
 	glPopMatrix();
 	glPopAttrib();
 
+	dtx_use_font(scorefont, FONTSZ);
 	glPushAttrib(GL_ENABLE_BIT);
 	glDisable(GL_LIGHTING);
 
 	glPushMatrix();
 	glTranslatef(-11, 6, 0);
-	glScalef(0.05, 0.05, 0.05);
+	glScalef(0.013, 0.013, 0.013);
 
 	glColor3f(1, 1, 1);
 	dtx_string("Score");
