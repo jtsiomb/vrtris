@@ -160,8 +160,7 @@ void game_keyboard(int key, int pressed)
 			game_quit();
 			return;
 
-		case '\n':
-		case '\r':
+		case KEY_F11:
 			if(mod & MOD_ALT) {
 				game_toggle_fullscreen();
 				return;

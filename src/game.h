@@ -100,4 +100,6 @@ int game_is_fullscreen(void);
 int game_num_joy_axes(void);
 int game_num_joy_buttons(void);
 
+unsigned long get_msec(void);
+
 #endif	// GAME_H_

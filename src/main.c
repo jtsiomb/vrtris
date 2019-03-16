@@ -13,7 +13,7 @@ static SDL_GLContext ctx;
 static int fullscreen;
 static int quit;
 
-static unsigned int start_time;
+static unsigned long start_time;
 static unsigned int modkeys;
 
 SDL_GameController *gamepad;
@@ -85,7 +85,7 @@ int main(int argc, char **argv)
 	while(!quit) {
 		SDL_Event ev;
 
-		time_msec = SDL_GetTicks() - start_time;
+		time_msec = get_msec();
 		while(SDL_PollEvent(&ev)) {
 			process_event(&ev);
 			if(quit) goto break_evloop;
@@ -134,6 +134,11 @@ void game_toggle_fullscreen()
 int game_is_fullscreen()
 {
 	return fullscreen;
+}
+
+unsigned long get_msec(void)
+{
+	return SDL_GetTicks() - start_time;
 }
 
 static void process_event(SDL_Event *ev)
