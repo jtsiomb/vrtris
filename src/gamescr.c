@@ -29,6 +29,7 @@ static void update(float dt);
 static void draw(void);
 static void draw_block(int block, const int *pos, int rot, float sat, float alpha);
 static void drawpf(void);
+static void game_input(unsigned int inp);
 static void reshape(int x, int y);
 static void keyboard(int key, int pressed);
 static void mouse(int bn, int pressed, int x, int y);
@@ -216,6 +217,7 @@ static void stop(void)
 
 static void update_input(float dtsec)
 {
+	unsigned int bnmask;
 #ifdef BUILD_VR
 	int num_vr_sticks;
 	float orig_joy_axis[3];
@@ -254,6 +256,18 @@ static void update_input(float dtsec)
 
 	ginp_bnstate = 0;
 
+	/* update repeating keys */
+	if(keystate['a'] || keystate[KEY_LEFT]) {
+		ginp_bnstate |= GINP_LEFT;
+	}
+	if(keystate['d'] || keystate[KEY_RIGHT]) {
+		ginp_bnstate |= GINP_RIGHT;
+	}
+	if(keystate['s'] || keystate[KEY_DOWN]) {
+		ginp_bnstate |= GINP_DOWN;
+	}
+
+
 	/* joystick axis */
 	if(joy_axis[GPAD_LSTICK_X] >= JTHRES) {
 		ginp_bnstate |= GINP_RIGHT;
@@ -277,23 +291,12 @@ static void update_input(float dtsec)
 
 	update_ginp();
 
-	if(GINP_PRESS(GINP_LEFT)) {
-		game_keyboard('a', 1);
-	}
-	if(GINP_PRESS(GINP_RIGHT)) {
-		game_keyboard('d', 1);
-	}
-	if(GINP_PRESS(GINP_DOWN)) {
-		game_keyboard('s', 1);
-	}
-	if(GINP_PRESS(GINP_UP)) {
-		game_keyboard('\t', 1);
-	}
-	if(GINP_PRESS(GINP_ROTATE)) {
-		game_keyboard('w', 1);
-	}
-	if(GINP_PRESS(GINP_PAUSE)) {
-		game_keyboard('p', 1);
+	bnmask = 1;
+	while(bnmask < GINP_ALL) {
+		if(GINP_PRESS(bnmask)) {
+			game_input(bnmask);
+		}
+		bnmask <<= 1;
 	}
 
 #ifdef BUILD_VR
@@ -521,20 +524,10 @@ static void drawpf(void)
 	}
 }
 
-
-static void reshape(int x, int y)
+static void game_input(unsigned int inp)
 {
-}
-
-static void keyboard(int key, int pressed)
-{
-	/*char *name = 0;*/
-
-	if(!pressed) return;
-
-	switch(key) {
-	case 'a':
-	case KEY_LEFT:
+	switch(inp) {
+	case GINP_LEFT:
 		if(!pause) {
 			next_pos[1] = pos[1] - 1;
 			if(collision(cur_block, next_pos)) {
@@ -545,8 +538,7 @@ static void keyboard(int key, int pressed)
 		}
 		break;
 
-	case 'd':
-	case KEY_RIGHT:
+	case GINP_RIGHT:
 		if(!pause) {
 			next_pos[1] = pos[1] + 1;
 			if(collision(cur_block, next_pos)) {
@@ -557,6 +549,37 @@ static void keyboard(int key, int pressed)
 		}
 		break;
 
+	case GINP_DOWN:
+		/* ignore drops until the first update after a spawn */
+		if(cur_block >= 0 && !just_spawned && !pause) {
+			next_pos[0] = pos[0] + 1;
+			if(collision(cur_block, next_pos)) {
+				next_pos[0] = pos[0];
+				update_cur_block();
+				stick(cur_block, next_pos);	/* stick immediately */
+			}
+		}
+		break;
+
+	default:
+		break;
+	}
+}
+
+static void reshape(int x, int y)
+{
+}
+
+/* in the keyboard event handler we ignore all the repeating keys
+ * which are handled in game_input instead, called from update_input
+ */
+static void keyboard(int key, int pressed)
+{
+	/*char *name = 0;*/
+
+	if(!pressed) return;
+
+	switch(key) {
 	case 'w':
 	case KEY_UP:
 	case ' ':
@@ -571,18 +594,6 @@ static void keyboard(int key, int pressed)
 		}
 		break;
 
-	case 's':
-	case KEY_DOWN:
-		/* ignore drops until the first update after a spawn */
-		if(cur_block >= 0 && !just_spawned && !pause) {
-			next_pos[0] = pos[0] + 1;
-			if(collision(cur_block, next_pos)) {
-				next_pos[0] = pos[0];
-				update_cur_block();
-				stick(cur_block, next_pos);	/* stick immediately */
-			}
-		}
-		break;
 
 	case '\n':
 	case '\t':

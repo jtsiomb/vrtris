@@ -9,6 +9,8 @@ enum {
 	GINP_ROTATE	= 16,
 	GINP_PAUSE	= 32
 };
+#define GINP_ALL \
+	(GINP_LEFT | GINP_RIGHT | GINP_UP | GINP_DOWN | GINP_ROTATE | GINP_PAUSE)
 
 #define GINP_PRESS(bn)		((ginp_bnstate & (bn)) && (ginp_bndelta & (bn)))
 #define GINP_RELEASE(bn)	((ginp_bnstate & (bn)) == 0 && (ginp_bndelta & (bn)))

@@ -27,7 +27,7 @@ int main(int argc, char **argv)
 	int i;
 	unsigned int sdlflags;
 
-	if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0) {
+	if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0) {
 		fprintf(stderr, "failed to initialize SDL\n");
 		return 1;
 	}

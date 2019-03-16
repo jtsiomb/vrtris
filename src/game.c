@@ -8,6 +8,7 @@
 #include "screen.h"
 #include "osd.h"
 #include "opt.h"
+#include "logger.h"
 
 #define DEFSCR	"game"
 
@@ -149,6 +150,10 @@ void game_keyboard(int key, int pressed)
 {
 	unsigned int mod = game_get_modifiers();
 
+	if(key < 256) {
+		keystate[key] = pressed;
+	}
+
 	if(pressed) {
 		switch(key) {
 		case 27:
@@ -167,6 +172,7 @@ void game_keyboard(int key, int pressed)
 #ifdef BUILD_VR
 			if(opt.flags & OPT_VR) {
 				goatvr_recenter();
+				return;
 			}
 #endif
 			break;

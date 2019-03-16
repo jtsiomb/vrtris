@@ -7,6 +7,7 @@ int vp_width, vp_height;	/* viewport size differs from win size during VR eye re
 float win_aspect;
 int fb_srgb;
 
+unsigned char keystate[256];
 float joy_axis[3];
 unsigned int joy_bnstate;
 
