@@ -21,6 +21,15 @@ under the terms of the GNU General Public License version 3, or at your option,
 any later version published by the Free Software Foundation. See COPYING for
 details.
 
+Download
+--------
+For now just grab the source code from the git repository:
+
+   git clone https://github.com/jtsiomb/vrtris
+
+Official releases will follow, with precompiled binaries, when vrtris becomes
+fully functional.
+
 Dependencies
 ------------
 VRtris depends on a number of libraries. Recursive dependencies are shown
