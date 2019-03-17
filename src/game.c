@@ -2,7 +2,7 @@
 #ifdef BUILD_VR
 #include <goatvr.h>
 #endif
-#include <cgmath/cgmath.h>
+#include "cgmath/cgmath.h"
 #include "opengl.h"
 #include "game.h"
 #include "screen.h"
