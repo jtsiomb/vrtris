@@ -16,6 +16,7 @@ static float star_size = 0.35f;
 #define STAR_COUNT	4096
 static cgm_vec3 star[STAR_COUNT];
 static float star_lenxy[STAR_COUNT];
+static float animtime;
 
 int init_starfield(void)
 {
@@ -45,7 +46,14 @@ int init_starfield(void)
 		cgm_vcons(star + i, x * width, y * width, z * star_depth);
 		star_lenxy[i] = sqrt(star[i].x * star[i].x + star[i].y * star[i].y);
 	}
+
+	animtime = 0;
 	return 0;
+}
+
+void update_starfield(float dt)
+{
+	animtime += dt;
 }
 
 void draw_starfield(void)
@@ -69,7 +77,7 @@ void draw_starfield(void)
 	glBegin(GL_QUADS);
 	for(i=0; i<STAR_COUNT; i++) {
 		pos = star[i];
-		z = fmod(pos.z + time_msec * star_speed / 1000.0f, star_depth);
+		z = fmod(pos.z + animtime * star_speed, star_depth);
 		t = z / star_depth;
 		pos.z = z - star_depth + STAR_ZOFFS;
 
@@ -108,7 +116,7 @@ void draw_starfield(void)
 	glBegin(GL_QUADS);
 	for(i=0; i<STAR_COUNT; i++) {
 		pos = star[i];
-		z = fmod(pos.z + time_msec * star_speed / 1000.0f, star_depth);
+		z = fmod(pos.z + animtime * star_speed, star_depth);
 		t = z / star_depth;
 		pos.z = z - star_depth + STAR_ZOFFS;
 

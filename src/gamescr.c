@@ -19,6 +19,7 @@
 #define FONTSZ	54
 
 int init_starfield(void);
+void update_starfield(float dt);
 void draw_starfield(void);
 
 static int init(void);
@@ -173,7 +174,7 @@ static void start(void)
 
 	memset(pfield, 0, PF_COLS * PF_ROWS * sizeof *pfield);
 
-	ginp_repeat(500, 75, GINP_LEFT | GINP_RIGHT | GINP_DOWN);
+	ginp_repeat(350, 75, GINP_LEFT | GINP_RIGHT | GINP_DOWN);
 
 	cam_theta = 0;
 	cam_phi = 0;
@@ -321,6 +322,8 @@ static void update(float dtsec)
 		return;
 	}
 	dt = time_msec - prev_tick;
+
+	update_starfield(dtsec);
 
 	if(gameover) {
 		int i, row = PF_ROWS - gameover;
@@ -596,6 +599,7 @@ static void game_input(unsigned int inp)
 			save_score(name, score, lines, level);
 			*/
 			/* TODO: pop screen */
+			start();
 		} else {
 			pause ^= 1;
 		}
