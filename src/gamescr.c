@@ -198,6 +198,8 @@ static void start(void)
 
 		goatvr_set_units_scale(vrscale);
 	}
+
+	goatvr_recenter();
 #endif
 }
 
@@ -301,8 +303,8 @@ static void update_input(float dtsec)
 
 #ifdef BUILD_VR
 	if(orig_joy_bnstate != UINT_MAX) {
-		memset(joy_axis, 0, sizeof joy_axis);
-		joy_bnstate = 0;
+		memcpy(joy_axis, orig_joy_axis, sizeof joy_axis);
+		joy_bnstate = orig_joy_bnstate;
 	}
 #endif
 }

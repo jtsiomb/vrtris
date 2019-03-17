@@ -169,7 +169,7 @@ void game_keyboard(int key, int pressed)
 
 		case KEY_HOME:
 #ifdef BUILD_VR
-			if(opt.flags & OPT_VR) {
+			if(goatvr_invr()) {
 				goatvr_recenter();
 				return;
 			}
@@ -212,6 +212,14 @@ void game_gamepad_button(int bn, int pressed)
 	} else {
 		joy_bnstate &= ~(1 << bn);
 	}
+
+#ifdef BUILD_VR
+	if(goatvr_invr()) {
+		if(bn == GPAD_BACK && pressed) {
+			goatvr_recenter();
+		}
+	}
+#endif
 }
 
 static void calc_framerate(void)
