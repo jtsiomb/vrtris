@@ -561,6 +561,44 @@ static void game_input(unsigned int inp)
 		}
 		break;
 
+	case GINP_ROTATE:
+		if(!pause) {
+			prev_rot = cur_rot;
+			cur_rot = (cur_rot + 1) & 3;
+			if(collision(cur_block, next_pos)) {
+				cur_rot = prev_rot;
+			} else {
+				/*snd_rot();*/
+			}
+		}
+		break;
+
+	case GINP_UP:
+		if(!pause && cur_block >= 0) {
+			next_pos[0] = pos[0] + 1;
+			while(!collision(cur_block, next_pos)) {
+				next_pos[0]++;
+			}
+			next_pos[0]--;
+			update_cur_block();
+			stick(cur_block, next_pos);	/* stick immediately */
+		}
+		break;
+
+	case GINP_PAUSE:
+		if(gameover) {
+			/*
+			if(score && is_highscore(score)) {
+				name = name_screen(score);
+			}
+			save_score(name, score, lines, level);
+			*/
+			/* TODO: pop screen */
+		} else {
+			pause ^= 1;
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -583,44 +621,18 @@ static void keyboard(int key, int pressed)
 	case 'w':
 	case KEY_UP:
 	case ' ':
-		if(!pause) {
-			prev_rot = cur_rot;
-			cur_rot = (cur_rot + 1) & 3;
-			if(collision(cur_block, next_pos)) {
-				cur_rot = prev_rot;
-			} else {
-				/*snd_rot();*/
-			}
-		}
+		game_input(GINP_ROTATE);
 		break;
 
 
 	case '\n':
 	case '\t':
 	case '0':
-		if(!pause && cur_block >= 0) {
-			next_pos[0] = pos[0] + 1;
-			while(!collision(cur_block, next_pos)) {
-				next_pos[0]++;
-			}
-			next_pos[0]--;
-			update_cur_block();
-			stick(cur_block, next_pos);	/* stick immediately */
-		}
+		game_input(GINP_UP);
 		break;
 
 	case 'p':
-		if(gameover) {
-			/*
-			if(score && is_highscore(score)) {
-				name = name_screen(score);
-			}
-			save_score(name, score, lines, level);
-			*/
-			/* TODO: pop screen */
-		} else {
-			pause ^= 1;
-		}
+		game_input(GINP_PAUSE);
 		break;
 
 	case '\b':
