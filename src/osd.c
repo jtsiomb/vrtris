@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <drawtext.h>
-#include <cgmath/cgmath.h>
+#include "cgmath/cgmath.h"
 #include "opengl.h"
 #include "osd.h"
 #include "game.h"

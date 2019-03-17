@@ -2,7 +2,7 @@
 #define CMESH_H_
 
 #include <stdio.h>
-#include <cgmath/cgmath.h>
+#include "cgmath/cgmath.h"
 
 enum {
 	CMESH_ATTR_VERTEX,
