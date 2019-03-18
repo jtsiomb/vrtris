@@ -1,7 +1,10 @@
 #ifndef AUDIO_H_
 #define AUDIO_H_
 
-struct audio_sample;
+struct audio_sample {
+	unsigned int albuf;
+};
+
 struct audio_source;
 /*struct audio_stream; TODO */
 
@@ -29,12 +32,17 @@ void au_set_source_sample(struct audio_source *asrc, struct audio_sample *as);
 struct audio_sample *au_get_source_sample(struct audio_source *asrc);
 
 void au_set_source_pos(struct audio_source *asrc, float x, float y, float z);
+void au_set_source_pos_rel(struct audio_source *asrc, float x, float y, float z);
 void au_get_source_pos(struct audio_source *asrc, float *x, float *y, float *z);
+
+void au_set_source_volume(struct audio_source *asrc, float vol);
+float au_get_source_volume(struct audio_source *asrc);
 
 void au_set_source_refdist(struct audio_source *asrc, float refdist);
 
 int au_is_source_playing(struct audio_source *asrc);
 void au_play_source(struct audio_source *asrc);
+void au_play_source_loop(struct audio_source *asrc);
 void au_stop_source(struct audio_source *asrc);
 
 #endif	/* AUDIO_H_ */

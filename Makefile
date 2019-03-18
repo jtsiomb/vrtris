@@ -19,8 +19,8 @@ dbg = -g
 opt = -O0
 
 CFLAGS = $(warn) $(dbg) $(opt) `pkg-config --cflags sdl2 freetype2` $(vr_cflags)
-LDFLAGS = $(libsys) -ldrawtext $(libgl) `pkg-config --libs sdl2 freetype2` \
-		  $(vr_ldflags) -limago -lpng -lz -ljpeg -lpthread -lm
+LDFLAGS = $(libsys) -ldrawtext $(libgl) $(libal) `pkg-config --libs sdl2 freetype2` \
+		  $(vr_ldflags) -limago -lpng -lz -ljpeg -lvorbisfile -lpthread -lm
 
 sys ?= $(shell uname -s | sed 's/MINGW.*/mingw/')
 
@@ -31,13 +31,16 @@ ifeq ($(sys), mingw)
 	bin = vrtris.exe
 
 	libgl = -lopengl32 -lglu32 -lglew32
+	libal = -lopenal
 	libsys = -lmingw32 -lSDL2main -lwinmm -mconsole
 
 else ifeq ($(sys), Darwin)
 	libgl = -framework OpenGL -lGLEW
+	libal = -framework OpenAL
 
 else
 	libgl = -lGL -lGLU -lGLEW
+	libal = -lopenal
 endif
 
 
