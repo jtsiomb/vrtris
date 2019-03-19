@@ -9,6 +9,8 @@
 #include "osd.h"
 #include "opt.h"
 #include "logger.h"
+#include "audio.h"
+#include "sndfx.h"
 
 #define DEFSCR	"game"
 
@@ -26,12 +28,19 @@ int game_init(int argc, char **argv)
 	if(init_opengl() == -1) {
 		return -1;
 	}
+	if(au_init() == -1) {
+		return -1;
+	}
 
 	if(init_options(argc, argv, "vrtris.conf") == -1) {
 		return -1;
 	}
 
 	if(init_screens() == -1) {
+		return -1;
+	}
+
+	if(init_sndfx() == -1) {
 		return -1;
 	}
 
@@ -64,6 +73,8 @@ void game_cleanup()
 	}
 #endif
 	cleanup_screens();
+	destroy_sndfx();
+	au_destroy();
 }
 
 static void update(float dt)

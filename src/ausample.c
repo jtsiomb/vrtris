@@ -56,6 +56,9 @@ int au_load_sample(struct audio_sample *as, const char *fname)
 	}
 	vinf = ov_info(&vf, -1);
 
+	info_log("loading sample: %s: %ld samples/s, %s (%d chan)\n", fname, vinf->rate,
+			vinf->channels == 1 ? "mono" : "stereo", vinf->channels);
+
 	num_samples = ov_pcm_total(&vf, -1) * vinf->channels;
 	bufsz = num_samples * sizeof *samples;
 
@@ -78,6 +81,7 @@ int au_load_sample(struct audio_sample *as, const char *fname)
 			return -1;
 		}
 		total_read += rd;
+		sptr += rd / 2;
 	}
 
 	if(au_set_sample_data(as, vinf->rate, vinf->channels, num_samples, samples) == -1) {

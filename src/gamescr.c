@@ -15,6 +15,7 @@
 #include "logger.h"
 #include "gameinp.h"
 #include "color.h"
+#include "sndfx.h"
 
 #define FONTSZ	54
 
@@ -805,7 +806,7 @@ static void stick(int block, const int *pos)
 		}
 	}
 
-	/*snd_stick();*/
+	snd_stick();
 
 	if(num_complines) {
 		addscore(num_complines);
