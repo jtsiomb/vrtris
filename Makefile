@@ -20,7 +20,7 @@ opt = -O0
 
 CFLAGS = $(warn) $(dbg) $(opt) `pkg-config --cflags sdl2 freetype2` $(vr_cflags)
 LDFLAGS = $(libsys) -ldrawtext $(libgl) $(libal) `pkg-config --libs sdl2 freetype2` \
-		  $(vr_ldflags) -limago -lpng -lz -ljpeg -lvorbisfile -lpthread -lm
+		  $(vr_ldflags) -limago -lpng -lz -ljpeg -lvorbisfile -lpthread -lm -lassfile
 
 sys ?= $(shell uname -s | sed 's/MINGW.*/mingw/')
 
