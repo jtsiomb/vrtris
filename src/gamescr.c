@@ -126,7 +126,6 @@ static int init(void)
 		return -1;
 	}
 	dtx_prepare_range(scorefont, FONTSZ, 32, 127);
-	dtx_save_glyphmap("foo.ppm", dtx_get_glyphmap(scorefont, 0));
 
 	if(init_starfield() == -1) {
 		return -1;
