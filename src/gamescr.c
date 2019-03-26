@@ -16,6 +16,7 @@
 #include "gameinp.h"
 #include "color.h"
 #include "sndfx.h"
+#include "scoredb.h"
 
 #define FONTSZ	54
 
@@ -538,7 +539,7 @@ static void game_input(unsigned int inp)
 			if(collision(cur_block, next_pos)) {
 				next_pos[1] = pos[1];
 			} else {
-				/*snd_shift();*/
+				snd_shift();
 			}
 		}
 		break;
@@ -549,7 +550,7 @@ static void game_input(unsigned int inp)
 			if(collision(cur_block, next_pos)) {
 				next_pos[1] = pos[1];
 			} else {
-				/*snd_shift();*/
+				snd_shift();
 			}
 		}
 		break;
@@ -573,7 +574,7 @@ static void game_input(unsigned int inp)
 			if(collision(cur_block, next_pos)) {
 				cur_rot = prev_rot;
 			} else {
-				/*snd_rot();*/
+				snd_rot();
 			}
 		}
 		break;
@@ -592,12 +593,9 @@ static void game_input(unsigned int inp)
 
 	case GINP_PAUSE:
 		if(gameover) {
-			/*
-			if(score && is_highscore(score)) {
-				name = name_screen(score);
+			if(score) {
+				save_score(score, lines, level);
 			}
-			save_score(name, score, lines, level);
-			*/
 			/* TODO: pop screen */
 			start();
 		} else {
@@ -633,7 +631,6 @@ static void keyboard(int key, int pressed)
 
 	case '\n':
 	case '\t':
-	case '0':
 		game_input(GINP_UP);
 		break;
 
@@ -642,12 +639,9 @@ static void keyboard(int key, int pressed)
 		break;
 
 	case '\b':
-		/*
-		if(score && is_highscore(score)) {
-			name = name_screen(score);
+		if(score) {
+			save_score(score, lines, level);
 		}
-		save_score(name, score, lines, level);
-		*/
 		/* TODO: pop screen */
 		break;
 

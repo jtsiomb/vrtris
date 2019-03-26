@@ -14,7 +14,7 @@ struct score_entry {
 	struct score_entry *next;
 };
 
-#define SCOREDB_PATH	"/var/games/vrtris/scores"
+#define SCOREDB_PATH	"scores"
 
 static void write_score(FILE *fp, struct score_entry *s);
 static struct score_entry *read_scores(FILE *fp);

@@ -22,6 +22,8 @@ static int should_swap;
 #endif
 static unsigned long framerate;
 
+static float volume;
+
 
 int game_init(int argc, char **argv)
 {
@@ -31,6 +33,7 @@ int game_init(int argc, char **argv)
 	if(au_init() == -1) {
 		return -1;
 	}
+	volume = get_snd_volume();
 
 	if(init_options(argc, argv, "vrtris.conf") == -1) {
 		return -1;
@@ -159,6 +162,7 @@ void game_reshape(int x, int y)
 
 void game_keyboard(int key, int pressed)
 {
+	static int mute;
 	unsigned int mod = game_get_modifiers();
 
 	if(key < 256) {
@@ -175,6 +179,31 @@ void game_keyboard(int key, int pressed)
 			if(mod & MOD_ALT) {
 				game_toggle_fullscreen();
 				return;
+			}
+			break;
+
+		case '=':
+			volume += 0.1;
+			if(volume > 1.0f) volume = 1.0f;
+			set_snd_volume(volume);
+			osd_printf("Volume: %d%%", (int)(volume * 100.0f));
+			break;
+
+		case '-':
+			volume -= 0.1f;
+			if(volume < 0.0f) volume = 0.0f;
+			set_snd_volume(volume);
+			osd_printf("Volume: %d%%", (int)(volume * 100.0f));
+			break;
+
+		case '0':
+			mute = ~mute;
+			if(mute) {
+				osd_printf("Mute");
+				set_snd_volume(0);
+			} else {
+				osd_printf("Unmute");
+				set_snd_volume(volume);
 			}
 			break;
 
