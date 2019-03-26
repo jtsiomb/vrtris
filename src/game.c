@@ -172,6 +172,7 @@ void game_keyboard(int key, int pressed)
 	if(pressed) {
 		switch(key) {
 		case 27:
+			screen->stop();
 			game_quit();
 			return;
 

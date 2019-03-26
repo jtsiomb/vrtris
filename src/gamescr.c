@@ -207,6 +207,9 @@ static void start(void)
 
 static void stop(void)
 {
+	if(score) {
+		save_score(score, lines, level);
+	}
 #ifdef BUILD_VR
 	goatvr_set_units_scale(1.0f);
 #endif
