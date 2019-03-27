@@ -501,8 +501,6 @@ static void draw_block(int block, const int *pos, int rot, float sat, float alph
 		int y = pos[0] + BLKY(*p);
 		p++;
 
-		if(y < 0) continue;
-
 		glPushMatrix();
 		glTranslatef(x, -y, 0);
 		cmesh_draw(blkmesh);
