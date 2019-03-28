@@ -2,14 +2,15 @@
 #define VRTK_H_
 
 #include <cgmath/cgmath.h>
+#include "fltbool.h"
 
 struct vrtk;
 struct vrtk_widget;
 
 /* bounding box extends from center - vec to center + vec in each axis */
 struct vrtk_box {
-	cgm_vec3 center;
-	cgm_vec3 uvec, vvec, wvec;
+	cgm_vec3 c;
+	cgm_vec3 u, v, w;
 };
 
 struct vrtk *vrtk_init(void);
@@ -18,8 +19,15 @@ void vrtk_shutdown(struct vrtk *tk);
 void vrtk_update(struct vrtk *tk, float dt);
 void vrtk_draw(struct vrtk *tk);
 
+void vrtk_bounds(struct vrtk *tk, struct vrtk_box *bbox);
+
 struct vrtk_widget *vrtk_create_widget(struct vrtk *tk);
 void vrtk_destroy_widget(struct vrtk_widget *w);
+
+void vrtk_widget_update(struct vrtk_widget *w, float dt);
+void vrtk_widget_draw(struct vrtk_widget *w);
+
+void vrtk_widget_bounds(struct vrtk_widget *w, struct vrtk_box *bbox);
 
 void vrtk_set_widget_xform(struct vrtk_widget *w, float *matrix);
 void vrtk_get_widget_xform(struct vrtk_widget *w, float *matrix);
