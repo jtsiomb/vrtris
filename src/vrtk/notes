@@ -1,0 +1,16 @@
+- update functions return whether we need further updates soon or if everything
+  has stabilized and we're good. This way we won't have to busy-loop in non-VR
+  situations.
+
+- instead of exposing bounding volumes and letting the user decide if they need
+  to send us events, expose a raytest and containment test so we can propagate
+  the test to every widget if necessary, to implement coarse and progressively
+  more fine colision detection, and letting each widget do that in the most
+  natural and simple way internally.
+
+- user "mouse" input is in the form of rays and 6D pos/rot. for the 2D case
+  we'll generate rays perpendicular to XY, for hand-tracking we'll have both for
+  pointing far away and for manipulating close by.
+
+- instead of click events we have action events that go to the hovered widget
+- hover events take both rays and positions, we can generate one from the other

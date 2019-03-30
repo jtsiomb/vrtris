@@ -8,10 +8,9 @@ struct vrtk_theme {
 	void *data;
 
 	void (*draw)(struct vrtk_widget*);
-	int (*bounds)(struct vrtk_widget*, struct vrtk_box*);
-	int (*contains)(struct vrtk_widget*, cgm_vec3*);
+	/*int (*bounds)(struct vrtk_widget*, struct vrtk_box*);*/
+	int (*contains)(struct vrtk_widget*, cgm_vec3*, float);
 	float (*rayhit)(struct vrtk_widget*, cgm_ray*);
-	int (*boxhit)(struct vrtk_widget*, struct vrtk_box*);
 };
 
 #endif	/* VRTK_THEME_H_ */
