@@ -44,3 +44,22 @@ void vrtk_destroy_widget(struct vrtk_widget *w)
 	free(w->text);
 	free(w);
 }
+
+struct vrtk_widget *vrtk_widget_contains(struct vrtk_widget *w, cgm_vec3 *pt, float rad)
+{
+	return 0;	/* TODO */
+}
+
+struct vrtk_widget *vrtk_widget_rayhit(struct vrtk_widget *w, cgm_ray *ray, float *hit)
+{
+	return 0;	/* TODO */
+}
+
+int vrtk_update_widget(struct vrtk_widget *w, float dt)
+{
+	return 0;	/* TODO */
+}
+
+void vrtk_draw_widget(struct vrtk_widget *w)
+{
+}

@@ -20,10 +20,10 @@ enum vrtk_action {
 
 /* widget events */
 enum vrtk_event_type {
-	VRTK_EVACTION,
-	VRTK_EVMODIFY,
-	VRTK_EVKEY,
-	VRTK_EVHOVER,
+	VRTK_EV_ACTION,
+	VRTK_EV_MODIFY,
+	VRTK_EV_KEY,
+	VRTK_EV_HOVER,
 
 	VRTK_NUM_EVENT_TYPES
 };

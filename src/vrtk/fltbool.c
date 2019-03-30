@@ -20,9 +20,9 @@ void vrtk_bool_change(struct vrtk_bool *b, int value)
 	b->dsign = value ? 1 : -1;
 }
 
-void vrtk_bool_update(struct vrtk_bool *b, float dt)
+int vrtk_bool_update(struct vrtk_bool *b, float dt)
 {
-	if(b->dsign == 0) return;
+	if(b->dsign == 0) return 0;
 
 	if(b->dsign > 0) {
 		b->fval += dt * b->speed;
@@ -39,4 +39,6 @@ void vrtk_bool_update(struct vrtk_bool *b, float dt)
 		b->fval = 1.0f;
 		b->dsign = 0;
 	}
+
+	return b->dsign == 0 ? 1 : 0;
 }

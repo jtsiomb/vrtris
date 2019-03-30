@@ -159,7 +159,7 @@ int vrtk_send_action_event(struct vrtk_widget *w, enum vrtk_action act, cgm_vec3
 {
 	struct vrtk_event ev;
 
-	ev.type = VRTK_EVACTION;
+	ev.type = VRTK_EV_ACTION;
 	ev.data.act.action = act;
 	ev.data.act.pos = *pos;
 	return vrtk_send_event(w, &ev);
@@ -169,7 +169,7 @@ int vrtk_send_modify_event(struct vrtk_widget *w)
 {
 	struct vrtk_event ev;
 
-	ev.type = VRTK_EVMODIFY;
+	ev.type = VRTK_EV_MODIFY;
 	return vrtk_send_event(w, &ev);
 }
 
@@ -177,7 +177,7 @@ int vrtk_send_key_event(struct vrtk_widget *w, int key, int pressed)
 {
 	struct vrtk_event ev;
 
-	ev.type = VRTK_EVKEY;
+	ev.type = VRTK_EV_KEY;
 	ev.data.key.key = key;
 	ev.data.key.pressed = pressed;
 	return vrtk_send_event(w, &ev);

@@ -2,7 +2,7 @@
 vrbuild = true
 # ---------------------------------------------------------
 
-src = $(wildcard src/*.c)
+src = $(wildcard src/*.c) $(wildcard src/vrtk/*.c)
 obj = $(src:.c=.o)
 dep = $(obj:.o=.d)
 
