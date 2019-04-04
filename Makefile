@@ -2,7 +2,9 @@
 vrbuild = true
 # ---------------------------------------------------------
 
-src = $(wildcard src/*.c) $(wildcard src/vrtk/*.c)
+src = $(wildcard src/*.c) $(wildcard src/vrtk/*.c) \
+	  $(wildcard libs/imago/*.c) \
+	  $(wildcard libs/drawtext/*.c)
 obj = $(src:.c=.o)
 dep = $(obj:.o=.d)
 
@@ -19,8 +21,8 @@ dbg = -g
 opt = -O0
 
 CFLAGS = $(warn) $(dbg) $(opt) `pkg-config --cflags sdl2 freetype2` $(vr_cflags)
-LDFLAGS = $(libsys) -ldrawtext $(libgl) $(libal) `pkg-config --libs sdl2 freetype2` \
-		  $(vr_ldflags) -limago -lpng -lz -ljpeg -lvorbisfile -lpthread -lm
+LDFLAGS = $(libsys) $(libgl) $(libal) `pkg-config --libs sdl2 freetype2` \
+		  $(vr_ldflags) -lpng -lz -ljpeg -lvorbisfile -lpthread -lm -ldl
 
 sys ?= $(shell uname -s | sed 's/MINGW.*/mingw/')
 
