@@ -4,7 +4,9 @@ vrbuild = true
 
 src = $(wildcard src/*.c) $(wildcard src/vrtk/*.c) \
 	  $(wildcard libs/imago/*.c) \
-	  $(wildcard libs/drawtext/*.c)
+	  $(wildcard libs/drawtext/*.c) \
+	  $(wildcard libs/ogg/*.c) \
+	  $(wildcard libs/vorbis/*.c)
 obj = $(src:.c=.o)
 dep = $(obj:.o=.d)
 
@@ -19,8 +21,9 @@ endif
 warn = -pedantic -Wall -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
 dbg = -g
 opt = -O0
+inc = -Ilibs/vorbis
 
-CFLAGS = $(warn) $(dbg) $(opt) `pkg-config --cflags sdl2 freetype2` $(vr_cflags)
+CFLAGS = $(warn) $(dbg) $(opt) $(inc) `pkg-config --cflags sdl2 freetype2` $(vr_cflags)
 LDFLAGS = $(libsys) $(libgl) $(libal) `pkg-config --libs sdl2 freetype2` \
 		  $(vr_ldflags) -lpng -lz -ljpeg -lvorbisfile -lpthread -lm -ldl
 
