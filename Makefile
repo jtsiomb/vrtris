@@ -5,6 +5,8 @@ vrbuild = true
 src = $(wildcard src/*.c) $(wildcard src/vrtk/*.c) \
 	  $(wildcard libs/imago/*.c) \
 	  $(wildcard libs/drawtext/*.c) \
+	  $(wildcard libs/libpng/*.c) \
+	  $(wildcard libs/libjpeg/*.c) \
 	  $(wildcard libs/ogg/*.c) \
 	  $(wildcard libs/vorbis/*.c)
 obj = $(src:.c=.o)
@@ -21,11 +23,11 @@ endif
 warn = -pedantic -Wall -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
 dbg = -g
 opt = -O0
-inc = -Ilibs/vorbis
+inc = -Ilibs/libpng -Ilibs/vorbis
 
 CFLAGS = $(warn) $(dbg) $(opt) $(inc) `pkg-config --cflags sdl2 freetype2` $(vr_cflags)
 LDFLAGS = $(libsys) $(libgl) $(libal) `pkg-config --libs sdl2 freetype2` \
-		  $(vr_ldflags) -lpng -lz -ljpeg -lvorbisfile -lpthread -lm -ldl
+		  $(vr_ldflags) -lz -lpthread -lm -ldl
 
 sys ?= $(shell uname -s | sed 's/MINGW.*/mingw/')
 
