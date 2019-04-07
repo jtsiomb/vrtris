@@ -35,7 +35,7 @@ struct game_screen help_screen = {
 };
 
 static struct cmesh *keybmesh;
-
+static int smidx;
 
 static int init(void)
 {
@@ -53,6 +53,7 @@ static void cleanup(void)
 
 static void start(void)
 {
+	smidx = -1;
 }
 
 static void stop(void)
@@ -96,7 +97,11 @@ static void draw(void)
 	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
 	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 20.0f);
 
-	cmesh_draw(keybmesh);
+	if(smidx >= 0) {
+		cmesh_draw_submesh(keybmesh, smidx);
+	} else {
+		cmesh_draw(keybmesh);
+	}
 	glPopMatrix();
 }
 
@@ -111,6 +116,11 @@ static void keyboard(int key, int pressed)
 	switch(key) {
 	case 27:
 		pop_screen();
+		break;
+
+	case ' ':
+		smidx = (smidx + 1) % cmesh_submesh_count(keybmesh);
+		printf("drawing submesh: %d\n", smidx);
 		break;
 
 	default:

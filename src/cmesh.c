@@ -1040,7 +1040,7 @@ void cmesh_draw_range(struct cmesh *cm, int start, int count)
 
 	if(cm->ibo_valid) {
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cm->ibo);
-		glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, (void*)start);
+		glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, (void*)(start * 4));
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	} else {
 		glDrawArrays(GL_TRIANGLES, start, count);

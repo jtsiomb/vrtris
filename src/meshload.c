@@ -137,6 +137,7 @@ int cmesh_load(struct cmesh *mesh, const char *fname)
 							fprintf(stderr, "load_mesh: failed to resize index array\n");
 							goto err;
 						}
+						subcount++;	/* inc number of submesh indices, in case we have submeshes */
 					} else {
 						unsigned int newidx = cmesh_attrib_count(mesh, CMESH_ATTR_VERTEX);
 						struct facevertex *newfv;
