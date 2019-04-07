@@ -172,6 +172,9 @@ void game_keyboard(int key, int pressed)
 	if(pressed) {
 		switch(key) {
 		case 27:
+			if(screen->next) break;
+		case 'q':
+		case 'Q':
 			screen->stop();
 			game_quit();
 			return;

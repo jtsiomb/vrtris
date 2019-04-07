@@ -6,6 +6,7 @@
 /* defined in their respective screen source files */
 struct game_screen main_menu_screen;
 struct game_screen game_screen;
+struct game_screen help_screen;
 
 static struct game_screen *screens[16];
 static int num_screens;
@@ -17,6 +18,7 @@ int init_screens(void)
 	/* populate the screens */
 	screens[i++] = &main_menu_screen;
 	screens[i++] = &game_screen;
+	screens[i++] = &help_screen;
 	num_screens = i;
 
 	screen = screens[0];
@@ -51,8 +53,22 @@ void reshape_screens(int x, int y)
 	}
 }
 
+struct game_screen *find_screen(const char *name)
+{
+	int i;
+
+	for(i=0; i<num_screens; i++) {
+		if(strcmp(screens[i]->name, name) == 0) {
+			return screens[i];
+		}
+	}
+	return 0;
+}
+
 int push_screen(struct game_screen *s)
 {
+	if(!s) return -1;
+
 	struct game_screen *it = screen;
 	while(it && it != s) {
 		it = it->next;

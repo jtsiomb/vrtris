@@ -6,9 +6,8 @@
 #include "dynarr.h"
 #include "rbtree.h"
 
-struct vertex_pos_color {
+struct vertex_pos {
 	float x, y, z;
-	float r, g, b, a;
 };
 
 struct facevertex {
@@ -35,13 +34,14 @@ int cmesh_load(struct cmesh *mesh, const char *fname)
 {
 	int i, line_num = 0, result = -1;
 	int found_quad = 0;
-	int found_color = 0;
 	FILE *fp = 0;
 	char buf[256];
-	struct vertex_pos_color *varr = 0;
+	struct vertex_pos *varr = 0;
 	cgm_vec3 *narr = 0;
 	cgm_vec2 *tarr = 0;
 	struct rbtree *rbtree = 0;
+	char *subname = 0;
+	int substart = 0, subcount = 0;
 
 	if(!(fp = fopen(fname, "rb"))) {
 		fprintf(stderr, "load_mesh: failed to open file: %s\n", fname);
@@ -71,24 +71,13 @@ int cmesh_load(struct cmesh *mesh, const char *fname)
 		case 'v':
 			if(isspace(line[1])) {
 				/* vertex */
-				struct vertex_pos_color v;
+				struct vertex_pos v;
 				int num;
 
-				num = sscanf(line + 2, "%f %f %f %f %f %f %f", &v.x, &v.y, &v.z, &v.r, &v.g, &v.b, &v.a);
+				num = sscanf(line + 2, "%f %f %f", &v.x, &v.y, &v.z);
 				if(num < 3) {
 					fprintf(stderr, "%s:%d: invalid vertex definition: \"%s\"\n", fname, line_num, line);
 					goto err;
-				}
-				if(num > 3) found_color = 1;
-				switch(num) {
-				case 3:
-					v.r = 1.0f;
-				case 4:
-					v.g = 1.0f;
-				case 5:
-					v.b = 1.0f;
-				case 6:
-					v.a = 1.0f;
 				}
 				if(!(varr = dynarr_push(varr, &v))) {
 					fprintf(stderr, "load_mesh: failed to resize vertex buffer\n");
@@ -151,17 +140,11 @@ int cmesh_load(struct cmesh *mesh, const char *fname)
 					} else {
 						unsigned int newidx = cmesh_attrib_count(mesh, CMESH_ATTR_VERTEX);
 						struct facevertex *newfv;
-						struct vertex_pos_color *vptr = varr + fv.vidx;
+						struct vertex_pos *vptr = varr + fv.vidx;
 
 						if(cmesh_push_attrib3f(mesh, CMESH_ATTR_VERTEX, vptr->x, vptr->y, vptr->z) == -1) {
 							fprintf(stderr, "load_mesh: failed to resize vertex array\n");
 							goto err;
-						}
-						if(found_color) {
-							if(cmesh_push_attrib(mesh, CMESH_ATTR_COLOR, &vptr->r) == -1) {
-								fprintf(stderr, "load_mesh: failed to resize color array\n");
-								goto err;
-							}
 						}
 						if(fv.nidx >= 0) {
 							float nx = narr[fv.nidx].x;
@@ -185,6 +168,7 @@ int cmesh_load(struct cmesh *mesh, const char *fname)
 							fprintf(stderr, "load_mesh: failed to resize index array\n");
 							goto err;
 						}
+						subcount++;	/* inc number of submesh indices, in case we have submeshes */
 
 						if((newfv = malloc(sizeof *newfv))) {
 							*newfv = fv;
@@ -199,15 +183,42 @@ int cmesh_load(struct cmesh *mesh, const char *fname)
 			}
 			break;
 
+		case 'o':
+			if(subcount > 0) {
+				cmesh_submesh(mesh, subname, substart, subcount);
+			}
+			free(subname);
+			if((subname = malloc(strlen(line)))) {
+				strcpy(subname, clean_line(line + 2));
+			}
+			substart += subcount;
+			subcount = 0;
+			break;
+
 		default:
 			break;
 		}
 	}
 
+	if(subcount > 0) {
+		/* don't add the final submesh if we never found another. an obj file with a
+		 * single 'o' for the whole list of faces, is a single mesh without submeshes
+		 */
+		if(cmesh_submesh_count(mesh) > 0) {
+			cmesh_submesh(mesh, subname, substart, subcount);
+		} else {
+			/* ... but use the 'o' name as the name of the mesh instead of the filename */
+			if(subname && *subname) {
+				cmesh_set_name(mesh, subname);
+			}
+		}
+	}
+
 	result = 0;	/* success */
 
-	printf("loaded %s mesh: %s: %d vertices, %d faces\n", found_quad ? "quad" : "triangle",
-			fname, cmesh_attrib_count(mesh, CMESH_ATTR_VERTEX), cmesh_poly_count(mesh));
+	printf("loaded %s mesh: %s (%d submeshes): %d vertices, %d faces\n",
+			found_quad ? "quad" : "triangle", fname, cmesh_submesh_count(mesh),
+			cmesh_attrib_count(mesh, CMESH_ATTR_VERTEX), cmesh_poly_count(mesh));
 
 err:
 	if(fp) fclose(fp);
@@ -215,8 +226,10 @@ err:
 	dynarr_free(narr);
 	dynarr_free(tarr);
 	rb_free(rbtree);
+	free(subname);
 	return result;
 }
+
 
 static char *clean_line(char *s)
 {

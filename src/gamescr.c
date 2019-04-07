@@ -321,7 +321,7 @@ static void update(float dtsec)
 
 	update_input(dtsec);
 
-	if(pause) {
+	if(pause || screen != &game_screen) {
 		prev_tick = time_msec;
 		return;
 	}
@@ -644,6 +644,10 @@ static void keyboard(int key, int pressed)
 			save_score(score, lines, level);
 		}
 		/* TODO: pop screen */
+		break;
+
+	case KEY_F1:
+		push_screen(find_screen("help"));
 		break;
 
 	default:
