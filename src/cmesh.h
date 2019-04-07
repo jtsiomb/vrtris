@@ -73,6 +73,14 @@ void cmesh_invalidate_ibo(struct cmesh *cm);
 
 int cmesh_append(struct cmesh *cmdest, struct cmesh *cmsrc);
 
+/* submeshes */
+void cmesh_clear_submeshes(struct cmesh *cm);
+int cmesh_submesh(struct cmesh *cm, const char *name, int istart, int icount);
+int cmesh_remove_submesh(struct cmesh *cm, int idx);
+int cmesh_find_submesh(struct cmesh *cm, const char *name);
+int cmesh_submesh_count(struct cmesh *cm);
+int cmesh_clone_submesh(struct cmesh *cmdest, struct cmesh *cm, int subidx);
+
 /* immediate-mode style mesh construction interface */
 int cmesh_vertex(struct cmesh *cm, float x, float y, float z);
 void cmesh_normal(struct cmesh *cm, float nx, float ny, float nz);
@@ -94,6 +102,8 @@ int cmesh_explode(struct cmesh *cm);	/* undo all vertex sharing */
 void cmesh_calc_face_normals(struct cmesh *cm);
 
 void cmesh_draw(struct cmesh *cm);
+void cmesh_draw_range(struct cmesh *cm, int start, int count);
+void cmesh_draw_submesh(struct cmesh *cm, int subidx);	/* XXX only for indexed meshes currently */
 void cmesh_draw_wire(struct cmesh *cm, float linesz);
 void cmesh_draw_vertices(struct cmesh *cm, float ptsz);
 void cmesh_draw_normals(struct cmesh *cm, float len);
@@ -114,7 +124,7 @@ void cmesh_texcoord_gen_plane(struct cmesh *cm, cgm_vec3 *norm, cgm_vec3 *tang);
 void cmesh_texcoord_gen_box(struct cmesh *cm);
 void cmesh_texcoord_gen_cylinder(struct cmesh *cm);
 
-
+/* FILE I/O */
 int cmesh_load(struct cmesh *cm, const char *fname);
 
 int cmesh_dump(struct cmesh *cm, const char *fname);

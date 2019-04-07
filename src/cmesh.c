@@ -15,10 +15,18 @@ struct cmesh_vattrib {
 	int vbo_valid, data_valid;
 };
 
+struct submesh {
+	char *name;
+	int istart, icount;
+	struct submesh *next;
+};
 
 struct cmesh {
 	char *name;
 	unsigned int nverts, nfaces;
+
+	struct submesh *sublist;
+	int subcount;
 
 	/* current value for each attribute for the immediate mode interface */
 	cgm_vec4 cur_val[CMESH_NUM_ATTR];
@@ -126,6 +134,8 @@ void cmesh_destroy(struct cmesh *cm)
 	}
 	free(cm->idata);
 
+	cmesh_clear_submeshes(cm);
+
 	glDeleteBuffers(CMESH_NUM_ATTR + 1, cm->buffer_objects);
 	if(cm->wire_ibo) {
 		glDeleteBuffers(1, &cm->wire_ibo);
@@ -153,6 +163,8 @@ void cmesh_clear(struct cmesh *cm)
 	cm->nverts = cm->nfaces = 0;
 
 	cm->bsph_valid = cm->aabb_valid = 0;
+
+	cmesh_clear_submeshes(cm);
 }
 
 int cmesh_clone(struct cmesh *cmdest, struct cmesh *cmsrc)
@@ -161,6 +173,7 @@ int cmesh_clone(struct cmesh *cmdest, struct cmesh *cmsrc)
 	char *name = 0;
 	float *varr[CMESH_NUM_ATTR] = {0};
 	unsigned int *iarr = 0;
+	struct submesh *sm;
 
 	/* do anything that can fail first, before making any changes to cmdest
 	 * so we have the option of recovering gracefuly
@@ -238,6 +251,13 @@ int cmesh_clone(struct cmesh *cmdest, struct cmesh *cmsrc)
 	cmdest->bsph_center = cmsrc->bsph_center;
 	cmdest->bsph_radius = cmsrc->bsph_radius;
 	cmdest->bsph_valid = cmsrc->bsph_valid;
+
+	/* copy sublist */
+	sm = cmsrc->sublist;
+	while(sm) {
+		cmesh_submesh(cmdest, sm->name, sm->istart, sm->icount);
+		sm = sm->next;
+	}
 
 	return 0;
 }
@@ -617,6 +637,89 @@ int cmesh_append(struct cmesh *cmdest, struct cmesh *cmsrc)
 	return 0;
 }
 
+void cmesh_clear_submeshes(struct cmesh *cm)
+{
+	struct submesh *sm;
+
+	while(cm->sublist) {
+		sm = cm->sublist;
+		cm->sublist = cm->sublist->next;
+		free(sm->name);
+		free(sm);
+	}
+	cm->subcount = 0;
+}
+
+int cmesh_submesh(struct cmesh *cm, const char *name, int istart, int icount)
+{
+	struct submesh *sm;
+
+	if(!(sm = malloc(sizeof *sm)) || !(sm->name = malloc(strlen(name) + 1))) {
+		free(sm);
+		return -1;
+	}
+	strcpy(sm->name, name);
+	sm->istart = istart;
+	sm->icount = icount;
+
+	sm->next = cm->sublist;
+	cm->sublist = sm;
+	cm->subcount++;
+	return 0;
+}
+
+int cmesh_remove_submesh(struct cmesh *cm, int idx)
+{
+	struct submesh dummy;
+	struct submesh *prev, *sm;
+
+	if(idx >= cm->subcount) {
+		return -1;
+	}
+
+	dummy.next = cm->sublist;
+	prev = &dummy;
+
+	while(prev->next && idx-- > 0) {
+		prev = prev->next;
+	}
+
+	if(!(sm = prev->next)) return -1;
+
+	prev->next = sm->next;
+	free(sm->name);
+	free(sm);
+
+	cm->sublist = dummy.next;
+	return 0;
+}
+
+int cmesh_find_submesh(struct cmesh *cm, const char *name)
+{
+	int idx = 0;
+	struct submesh *sm = cm->sublist;
+	while(sm) {
+		if(strcmp(sm->name, name) == 0) {
+			assert(idx <= cm->subcount);
+			return idx;
+		}
+		idx++;
+		sm = sm->next;
+	}
+	return -1;
+}
+
+int cmesh_submesh_count(struct cmesh *cm)
+{
+	return cm->subcount;
+}
+
+int cmesh_clone_submesh(struct cmesh *cmdest, struct cmesh *cm, int subidx)
+{
+	return -1;	/* TODO */
+}
+
+
 /* assemble a complete vertex by adding all the useful attributes */
 int cmesh_vertex(struct cmesh *cm, float x, float y, float z)
 {
@@ -920,6 +1023,15 @@ static int pre_draw(struct cmesh *cm)
 
 void cmesh_draw(struct cmesh *cm)
 {
+	if(cm->ibo_valid) {
+		cmesh_draw_range(cm, 0, cm->nfaces * 3);
+	} else {
+		cmesh_draw_range(cm, 0, cm->nverts);
+	}
+}
+
+void cmesh_draw_range(struct cmesh *cm, int start, int count)
+{
 	int cur_sdr;
 
 	if((cur_sdr = pre_draw(cm)) == -1) {
@@ -928,13 +1040,25 @@ void cmesh_draw(struct cmesh *cm)
 
 	if(cm->ibo_valid) {
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cm->ibo);
-		glDrawElements(GL_TRIANGLES, cm->nfaces * 3, GL_UNSIGNED_INT, 0);
+		glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, (void*)start);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	} else {
-		glDrawArrays(GL_TRIANGLES, 0, cm->nverts);
+		glDrawArrays(GL_TRIANGLES, start, count);
 	}
 
 	post_draw(cm, cur_sdr);
+}
+
+void cmesh_draw_submesh(struct cmesh *cm, int subidx)
+{
+	struct submesh *sm = cm->sublist;
+
+	while(sm && subidx-- > 0) {
+		sm = sm->next;
+	}
+	if(!cm->ibo_valid || !sm) return;
+
+	cmesh_draw_range(cm, sm->istart, sm->icount);
 }
 
 static void post_draw(struct cmesh *cm, int cur_sdr)
