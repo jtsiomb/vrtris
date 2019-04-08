@@ -62,11 +62,9 @@ static void stop(void)
 
 static void update(float dt)
 {
-	/*
 	if(screen->next) {
 		screen->next->update(dt);
 	}
-	*/
 }
 
 static void draw(void)
@@ -76,15 +74,41 @@ static void draw(void)
 	float col[] = {1, 0.98, 0.94, 1};
 	float spec[] = {0.2, 0.2, 0.2, 1};
 
-	/*
 	if(screen->next) {
 		glPushMatrix();
 		screen->next->draw();
 		glPopMatrix();
 	}
-	*/
 
-	glTranslatef(0, 0, -30);
+	/* darken the backdrop */
+	glPushAttrib(GL_ENABLE_BIT);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDisable(GL_LIGHTING);
+	glDisable(GL_DEPTH_TEST);
+
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+
+	glBegin(GL_QUADS);
+	glColor4f(0, 0, 0, 0.5);
+	glVertex2f(-1, -1);
+	glVertex2f(1, -1);
+	glVertex2f(1, 1);
+	glVertex2f(-1, 1);
+	glEnd();
+
+	glPopMatrix();
+	glMatrixMode(GL_MODELVIEW);
+	glPopMatrix();
+
+
+	/* draw the controls */
+	glTranslatef(0, 0, -23);
 	glRotatef(40, 1, 0, 0);
 
 	glLightfv(GL_LIGHT0, GL_POSITION, lpos);
@@ -92,6 +116,10 @@ static void draw(void)
 	glPushMatrix();
 	glRotatef(cos(t * 0.5) * 2.0f, 1, 0, 0);
 	glRotatef(sin(t * 0.4) * 8.0f, 0, 1, 0);
+	glScalef(0.5, 0.5, 0.5);
+
+	glEnable(GL_NORMALIZE);
+	glEnable(GL_LIGHTING);
 
 	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, col);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, spec);
@@ -102,6 +130,7 @@ static void draw(void)
 	} else {
 		cmesh_draw(keybmesh);
 	}
+	glPopAttrib();
 	glPopMatrix();
 }
 
@@ -114,6 +143,7 @@ static void keyboard(int key, int pressed)
 	if(!pressed) return;
 
 	switch(key) {
+	case KEY_F1:
 	case 27:
 		pop_screen();
 		break;
