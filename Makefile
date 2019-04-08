@@ -5,8 +5,6 @@ vrbuild = true
 src = $(wildcard src/*.c) $(wildcard src/vrtk/*.c) \
 	  $(wildcard libs/imago/*.c) \
 	  $(wildcard libs/drawtext/*.c) \
-	  $(wildcard libs/libpng/*.c) \
-	  $(wildcard libs/libjpeg/*.c) \
 	  $(wildcard libs/ogg/*.c) \
 	  $(wildcard libs/vorbis/*.c)
 obj = $(src:.c=.o)
@@ -23,11 +21,11 @@ endif
 warn = -pedantic -Wall -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
 dbg = -g
 opt = -O0
-inc = -Ilibs/libpng -Ilibs/vorbis
+inc = -Ilibs/vorbis
 
 CFLAGS = $(warn) $(dbg) $(opt) $(inc) `pkg-config --cflags sdl2 freetype2` $(vr_cflags)
 LDFLAGS = $(libsys) $(libgl) $(libal) `pkg-config --libs sdl2 freetype2` \
-		  $(vr_ldflags) -lz -lpthread -lm -ldl
+		  $(vr_ldflags) -ljpeg -lpng -lz -lpthread -lm
 
 sys ?= $(shell uname -s | sed 's/MINGW.*/mingw/')
 
@@ -48,6 +46,7 @@ else ifeq ($(sys), Darwin)
 else
 	libgl = -lGL -lGLU -lGLEW
 	libal = -lopenal
+	libsys = -ldl
 endif
 
 

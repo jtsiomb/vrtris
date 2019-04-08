@@ -3,10 +3,8 @@
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <pwd.h>
 #include "scoredb.h"
+
 
 struct score_entry {
 	char *user;
@@ -22,33 +20,20 @@ static void free_list(struct score_entry *s);
 
 int save_score(int score, int lines, int level)
 {
-	int fd, count;
+	int count;
 	FILE *fp;
-	struct passwd *pw;
 	struct score_entry *slist, *sptr;
 	struct score_entry newscore;
-	struct flock flk;
 
-	if(!(pw = getpwuid(getuid()))) {
-		perror("save_score: failed to retreive user information");
-		return -1;
-	}
-	newscore.user = pw->pw_name;
+	newscore.user = "unknown";
 	newscore.score = score;
 	newscore.lines = lines;
 	newscore.level = level;
 
-	if((fd = open(SCOREDB_PATH, O_RDWR | O_CREAT, 0666)) == -1 || !(fp = fdopen(fd, "r+"))) {
-		close(fd);
+	if(!(fp = fopen(SCOREDB_PATH, "r+"))) {
 		fprintf(stderr, "failed to save scores to %s: %s\n", SCOREDB_PATH, strerror(errno));
 		return -1;
 	}
-
-	/* lock the file */
-	flk.l_type = F_WRLCK;
-	flk.l_start = flk.l_len = 0;
-	flk.l_whence = SEEK_SET;
-	while(fcntl(fd, F_SETLKW, &flk) == -1);
 
 	slist = read_scores(fp);
 
@@ -68,12 +53,6 @@ int save_score(int score, int lines, int level)
 		sptr = sptr->next;
 	}
 	fflush(fp);
-
-	/* unlock the file */
-	flk.l_type = F_UNLCK;
-	flk.l_start = flk.l_len = 0;
-	flk.l_whence = SEEK_SET;
-	fcntl(fd, F_SETLK, &flk);
 
 	free_list(slist);
 	fclose(fp);
@@ -164,7 +143,6 @@ int print_scores(int num)
 {
 	int i;
 	FILE *fp;
-	struct flock flk;
 	char buf[128];
 	struct score_entry sc;
 
@@ -172,11 +150,6 @@ int print_scores(int num)
 		fprintf(stderr, "no high-scores found\n");
 		return -1;
 	}
-
-	flk.l_type = F_RDLCK;
-	flk.l_start = flk.l_len = 0;
-	flk.l_whence = SEEK_SET;
-	while(fcntl(fileno(fp), F_SETLKW, &flk) == -1);
 
 	for(i=0; i<num; i++) {
 		if(!fgets(buf, sizeof buf, fp)) break;
@@ -186,11 +159,6 @@ int print_scores(int num)
 		}
 		printf("%2d. %s - %d pts  (%d lines)\n", i + 1, sc.user, sc.score, sc.lines);
 	}
-
-	flk.l_type = F_UNLCK;
-	flk.l_start = flk.l_len = 0;
-	flk.l_whence = SEEK_SET;
-	fcntl(fileno(fp), F_SETLK, &flk);
 
 	fclose(fp);
 	return 0;
