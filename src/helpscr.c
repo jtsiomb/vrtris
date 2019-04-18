@@ -175,6 +175,7 @@ static void draw(void)
 
 	glColor3f(1, 0.5, 0.2);
 	for(i=0; i<num_keyb_submeshes; i++) {
+		/* XXX assumes the unused keys are the last submesh */
 		if(i >= num_keyb_submeshes - 1) {
 			glColor3f(0.5, 0.5, 0.5);
 		}
