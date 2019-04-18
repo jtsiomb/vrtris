@@ -6,6 +6,10 @@
 #include "cmesh.h"
 #include "logger.h"
 
+
+#define ZOOM_SPEED	20.0f
+#define MAX_ZOOM	8.0f
+
 static int init(void);
 static void cleanup(void);
 static void start(void);
@@ -35,9 +39,26 @@ struct game_screen help_screen = {
 	wheel
 };
 
-static struct cmesh *keybmesh;
-static int num_keyb_submeshes;
-static int smidx;
+struct keymesh {
+	struct cmesh *mesh;
+	int active;
+	const char *name;
+};
+
+struct cmesh *kbmesh;	/* whole mesh */
+static struct keymesh kmesh[] = {
+	{0, 0, "unusedkeys"},
+	{0, 1, "key_up"},
+	{0, 1, "key_down"},
+	{0, 1, "key_left"},
+	{0, 1, "key_right"},
+	{0, 1, "key_p"},
+	{0, 1, "key_ret"},
+	{0, 1, "key_bs"}
+};
+static const int num_kmesh = sizeof kmesh / sizeof *kmesh;
+
+
 static float zoom_lin;
 
 static unsigned int tex_sph, tex_glyphs;
@@ -45,11 +66,27 @@ static unsigned int tex_sph, tex_glyphs;
 
 static int init(void)
 {
-	if(!(keybmesh = cmesh_alloc()) || cmesh_load(keybmesh, "data/keyb.obj") == -1) {
+	int i, num_subs, idx;
+
+	if(!(kbmesh = cmesh_alloc()) || cmesh_load(kbmesh, "data/keyb.obj") == -1) {
 		error_log("failed to load keyboard layout mesh for the help screen\n");
 		return -1;
 	}
-	num_keyb_submeshes = cmesh_submesh_count(keybmesh);
+	if((num_subs = cmesh_submesh_count(kbmesh)) < num_kmesh) {
+		error_log("keyb.obj doesn't have all the submeshes expected\n");
+		return -1;
+	}
+
+	for(i=0; i<num_kmesh; i++) {
+		if((idx = cmesh_find_submesh(kbmesh, kmesh[i].name)) == -1) {
+			error_log("keyb.obj doesn't have submesh \"%s\"\n", kmesh[i].name);
+			return -1;
+		}
+		if(!(kmesh[i].mesh = cmesh_alloc()) || cmesh_clone_submesh(kmesh[i].mesh, kbmesh, idx) == -1) {
+			error_log("failed to create submesh for keyb.obj:%s\n", kmesh[i].name);
+			return -1;
+		}
+	}
 
 	if(!(tex_sph = img_gltexture_load("data/sphmap1.jpg"))) {
 		error_log("failed to load data/sphmap1.jpg\n");
@@ -65,23 +102,23 @@ static int init(void)
 
 static void cleanup(void)
 {
-	cmesh_free(keybmesh);
+	int i;
+	cmesh_free(kbmesh);
+	for(i=0; i<num_kmesh; i++) {
+		cmesh_free(kmesh[i].mesh);
+	}
 	glDeleteTextures(1, &tex_sph);
 	glDeleteTextures(1, &tex_glyphs);
 }
 
 static void start(void)
 {
-	smidx = -1;
 	zoom_lin = 0;
 }
 
 static void stop(void)
 {
 }
-
-#define ZOOM_SPEED	20.0f
-#define MAX_ZOOM	8.0f
 
 static void update(float dt)
 {
@@ -160,11 +197,7 @@ static void draw(void)
 
 	glColor3f(1, 1, 1);
 
-	if(smidx >= 0) {
-		cmesh_draw_submesh(keybmesh, smidx);
-	} else {
-		cmesh_draw(keybmesh);
-	}
+	cmesh_draw(kbmesh);
 
 	glBindTexture(GL_TEXTURE_2D, tex_glyphs);
 	glEnable(GL_BLEND);
@@ -173,13 +206,14 @@ static void draw(void)
 	glDisable(GL_TEXTURE_GEN_S);
 	glDisable(GL_TEXTURE_GEN_T);
 
-	glColor3f(1, 0.5, 0.2);
-	for(i=0; i<num_keyb_submeshes; i++) {
-		/* XXX assumes the unused keys are the last submesh */
-		if(i >= num_keyb_submeshes - 1) {
+	for(i=0; i<num_kmesh; i++) {
+		if(kmesh[i].active) {
+			glColor3f(1, 0.5, 0.2);
+		} else {
 			glColor3f(0.5, 0.5, 0.5);
 		}
-		cmesh_draw_submesh(keybmesh, i);
+
+		cmesh_draw(kmesh[i].mesh);
 	}
 	glPopAttrib();
 	glPopMatrix();
@@ -197,11 +231,6 @@ static void keyboard(int key, int pressed)
 	case KEY_F1:
 	case 27:
 		pop_screen();
-		break;
-
-	case ' ':
-		smidx = (smidx + 1) % cmesh_submesh_count(keybmesh);
-		printf("drawing submesh: %d\n", smidx);
 		break;
 
 	default:
