@@ -91,6 +91,7 @@ int cmesh_load(struct cmesh *mesh, const char *fname)
 					fprintf(stderr, "%s:%d: invalid texcoord definition: \"%s\"\n", fname, line_num, line);
 					goto err;
 				}
+				tc.y = 1.0f - tc.y;
 				if(!(tarr = dynarr_push(tarr, &tc))) {
 					fprintf(stderr, "load_mesh: failed to resize texcoord buffer\n");
 					goto err;
