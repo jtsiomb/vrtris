@@ -75,7 +75,8 @@ int cmesh_append(struct cmesh *cmdest, struct cmesh *cmsrc);
 
 /* submeshes */
 void cmesh_clear_submeshes(struct cmesh *cm);
-int cmesh_submesh(struct cmesh *cm, const char *name, int istart, int icount);
+/* a submesh is defined as a consecutive range of faces */
+int cmesh_submesh(struct cmesh *cm, const char *name, int fstart, int fcount);
 int cmesh_remove_submesh(struct cmesh *cm, int idx);
 int cmesh_find_submesh(struct cmesh *cm, const char *name);
 int cmesh_submesh_count(struct cmesh *cm);

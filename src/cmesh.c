@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 #include <float.h>
 #include <assert.h>
 #include "opengl.h"
@@ -15,9 +16,16 @@ struct cmesh_vattrib {
 	int vbo_valid, data_valid;
 };
 
+/* istart,icount are valid only when the mesh is indexed, otherwise icount is 0.
+ * vstart,vcount are define the submesh for non-indexed meshes.
+ * For indexed meshes, vstart,vcount denote the range of vertices used by each
+ * submesh.
+ */
 struct submesh {
 	char *name;
+	int nfaces;	/* derived from either icount or vcount */
 	int istart, icount;
+	int vstart, vcount;
 	struct submesh *next;
 };
 
@@ -53,6 +61,7 @@ struct cmesh {
 };
 
 
+static int clone(struct cmesh *cmdest, struct cmesh *cmsrc, struct submesh *sub);
 static int pre_draw(struct cmesh *cm);
 static void post_draw(struct cmesh *cm, int cur_sdr);
 static void update_buffers(struct cmesh *cm);
@@ -169,31 +178,51 @@ void cmesh_clear(struct cmesh *cm)
 
 int cmesh_clone(struct cmesh *cmdest, struct cmesh *cmsrc)
 {
-	int i, nelem;
-	char *name = 0;
-	float *varr[CMESH_NUM_ATTR] = {0};
-	unsigned int *iarr = 0;
-	struct submesh *sm;
+	return clone(cmdest, cmsrc, 0);
+}
 
-	/* do anything that can fail first, before making any changes to cmdest
+static int clone(struct cmesh *cmdest, struct cmesh *cmsrc, struct submesh *sub)
+{
+	int i, nelem, vstart, vcount, istart, icount;
+	char *srcname, *name = 0;
+	float *varr[CMESH_NUM_ATTR] = {0};
+	float *vptr;
+	unsigned int *iptr, *iarr = 0;
+
+	/* try do anything that can fail first, before making any changes to cmdest
 	 * so we have the option of recovering gracefuly
 	 */
-	if(cmsrc->name) {
-		if(!(name = malloc(strlen(cmsrc->name)))) {
+
+	srcname = sub ? sub->name : cmsrc->name;
+	if(srcname) {
+		if(!(name = malloc(strlen(srcname) + 1))) {
 			return -1;
 		}
-		strcpy(name, cmsrc->name);
+		strcpy(name, srcname);
 	}
+
+	if(sub) {
+		vstart = sub->vstart;
+		vcount = sub->vcount;
+		istart = sub->istart;
+		icount = sub->icount;
+	} else {
+		vstart = istart = 0;
+		vcount = cmsrc->nverts;
+		icount = cmsrc->icount;
+	}
+
 	if(cmesh_indexed(cmsrc)) {
-		if(!(iarr = malloc(cmsrc->icount * sizeof *iarr))) {
+		if(!(iarr = malloc(icount * sizeof *iarr))) {
 			free(name);
 			return -1;
 		}
 	}
+
 	for(i=0; i<CMESH_NUM_ATTR; i++) {
 		if(cmesh_has_attrib(cmsrc, i)) {
 			nelem = cmsrc->vattr[i].nelem;
-			if(!(varr[i] = malloc(cmsrc->vattr[i].count * nelem * sizeof(float)))) {
+			if(!(varr[i] = malloc(vcount * nelem * sizeof(float)))) {
 				while(--i >= 0) {
 					free(varr[i]);
 				}
@@ -204,6 +233,7 @@ int cmesh_clone(struct cmesh *cmdest, struct cmesh *cmsrc)
 		}
 	}
 
+	/* from this point forward nothing can fail */
 	cmesh_clear(cmdest);
 
 	for(i=0; i<CMESH_NUM_ATTR; i++) {
@@ -215,8 +245,9 @@ int cmesh_clone(struct cmesh *cmdest, struct cmesh *cmsrc)
 			nelem = cmsrc->vattr[i].nelem;
 			cmdest->vattr[i].nelem = nelem;
 			cmdest->vattr[i].data = varr[i];
-			cmdest->vattr[i].count = cmsrc->vattr[i].count;
-			memcpy(cmdest->vattr[i].data, cmsrc->vattr[i].data, cmsrc->vattr[i].count * nelem * sizeof(float));
+			cmdest->vattr[i].count = vcount;
+			vptr = cmsrc->vattr[i].data + vstart * nelem;
+			memcpy(cmdest->vattr[i].data, vptr, vcount * nelem * sizeof(float));
 			cmdest->vattr[i].data_valid = 1;
 			cmdest->vattr[i].vbo_valid = 0;
 		} else {
@@ -224,13 +255,20 @@ int cmesh_clone(struct cmesh *cmdest, struct cmesh *cmsrc)
 		}
 	}
 
-	free(cmdest->idata);
 	if(cmesh_indexed(cmsrc)) {
 		cmesh_index(cmsrc);	/* force validation .... */
 
 		cmdest->idata = iarr;
-		cmdest->icount = cmsrc->icount;
-		memcpy(cmdest->idata, cmsrc->idata, cmsrc->icount * sizeof *cmdest->idata);
+		cmdest->icount = icount;
+		if(sub) {
+			/* need to offset all vertex indices by -vstart */
+			iptr = cmsrc->idata + istart;
+			for(i=0; i<icount; i++) {
+				cmdest->idata[i] = *iptr++ - vstart;
+			}
+		} else {
+			memcpy(cmdest->idata, cmsrc->idata + istart, icount * sizeof *cmdest->idata);
+		}
 		cmdest->idata_valid = 1;
 	} else {
 		cmdest->idata = 0;
@@ -241,7 +279,7 @@ int cmesh_clone(struct cmesh *cmdest, struct cmesh *cmsrc)
 	cmdest->name = name;
 
 	cmdest->nverts = cmsrc->nverts;
-	cmdest->nfaces = cmsrc->nfaces;
+	cmdest->nfaces = sub ? sub->nfaces : cmsrc->nfaces;
 
 	memcpy(cmdest->cur_val, cmsrc->cur_val, sizeof cmdest->cur_val);
 
@@ -252,11 +290,34 @@ int cmesh_clone(struct cmesh *cmdest, struct cmesh *cmsrc)
 	cmdest->bsph_radius = cmsrc->bsph_radius;
 	cmdest->bsph_valid = cmsrc->bsph_valid;
 
-	/* copy sublist */
-	sm = cmsrc->sublist;
-	while(sm) {
-		cmesh_submesh(cmdest, sm->name, sm->istart, sm->icount);
-		sm = sm->next;
+	/* copy sublist only if we're not cloning a submesh */
+	if(!sub) {
+		struct submesh *sm, *n, *head = 0, *tail = 0;
+
+		sm = cmsrc->sublist;
+		while(sm) {
+			if(!(n = malloc(sizeof *n)) || !(name = malloc(strlen(sm->name) + 1))) {
+				free(n);
+				sm = sm->next;
+				continue;
+			}
+			strcpy(name, sm->name);
+			*n = *sm;
+			n->name = name;
+			n->next = 0;
+
+			if(head) {
+				tail->next = n;
+				tail = n;
+			} else {
+				head = tail = n;
+			}
+
+			sm = sm->next;
+		}
+
+		cmdest->sublist = head;
+		cmdest->subcount = cmsrc->subcount;
 	}
 
 	return 0;
@@ -650,17 +711,42 @@ void cmesh_clear_submeshes(struct cmesh *cm)
 	cm->subcount = 0;
 }
 
-int cmesh_submesh(struct cmesh *cm, const char *name, int istart, int icount)
+int cmesh_submesh(struct cmesh *cm, const char *name, int fstart, int fcount)
 {
+	int i;
+	unsigned int minv = UINT_MAX, maxv = 0;
+	unsigned int *iptr;
 	struct submesh *sm;
+
+	if(fstart < 0 || fcount < 1 || fstart + fcount > cm->nfaces) {
+		return -1;
+	}
 
 	if(!(sm = malloc(sizeof *sm)) || !(sm->name = malloc(strlen(name) + 1))) {
 		free(sm);
 		return -1;
 	}
 	strcpy(sm->name, name);
-	sm->istart = istart;
-	sm->icount = icount;
+	sm->nfaces = fcount;
+
+	if(cmesh_indexed(cm)) {
+		sm->istart = fstart * 3;
+		sm->icount = fcount * 3;
+
+		/* find out which vertices are used by this submesh */
+		iptr = cm->idata + sm->istart;
+		for(i=0; i<sm->icount; i++) {
+			unsigned int vidx = *iptr++;
+			if(vidx < minv) minv = vidx;
+			if(vidx > maxv) maxv = vidx;
+		}
+		sm->vstart = minv;
+		sm->vcount = maxv - minv + 1;
+	} else {
+		sm->istart = sm->icount = 0;
+		sm->vstart = fstart * 3;
+		sm->vcount = fcount * 3;
+	}
 
 	sm->next = cm->sublist;
 	cm->sublist = sm;
@@ -690,6 +776,9 @@ int cmesh_remove_submesh(struct cmesh *cm, int idx)
 	free(sm->name);
 	free(sm);
 
+	cm->subcount--;
+	assert(cm->subcount >= 0);
+
 	cm->sublist = dummy.next;
 	return 0;
 }
@@ -714,9 +803,23 @@ int cmesh_submesh_count(struct cmesh *cm)
 	return cm->subcount;
 }
 
+static struct submesh *get_submesh(struct cmesh *m, int idx)
+{
+	struct submesh *sm = m->sublist;
+	while(sm && --idx >= 0) {
+		sm = sm->next;
+	}
+	return sm;
+}
+
 int cmesh_clone_submesh(struct cmesh *cmdest, struct cmesh *cm, int subidx)
 {
-	return -1;	/* TODO */
+	struct submesh *sub;
+
+	if(!(sub = get_submesh(cm, subidx))) {
+		return -1;
+	}
+	return clone(cmdest, cm, sub);
 }
 
 
@@ -1058,7 +1161,11 @@ void cmesh_draw_submesh(struct cmesh *cm, int subidx)
 	}
 	if(!cm->ibo_valid || !sm) return;
 
-	cmesh_draw_range(cm, sm->istart, sm->icount);
+	if(sm->icount) {
+		cmesh_draw_range(cm, sm->istart, sm->icount);
+	} else {
+		cmesh_draw_range(cm, sm->vstart, sm->vcount);
+	}
 }
 
 static void post_draw(struct cmesh *cm, int cur_sdr)
