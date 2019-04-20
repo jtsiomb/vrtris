@@ -187,7 +187,8 @@ int cmesh_load(struct cmesh *mesh, const char *fname)
 
 		case 'o':
 			if(subcount > 0) {
-				cmesh_submesh(mesh, subname, substart, subcount);
+				printf("adding submesh: %s\n", subname);
+				cmesh_submesh(mesh, subname, substart / 3, subcount / 3);
 			}
 			free(subname);
 			if((subname = malloc(strlen(line)))) {
@@ -207,7 +208,8 @@ int cmesh_load(struct cmesh *mesh, const char *fname)
 		 * single 'o' for the whole list of faces, is a single mesh without submeshes
 		 */
 		if(cmesh_submesh_count(mesh) > 0) {
-			cmesh_submesh(mesh, subname, substart, subcount);
+			printf("adding submesh: %s\n", subname);
+			cmesh_submesh(mesh, subname, substart / 3, subcount / 3);
 		} else {
 			/* ... but use the 'o' name as the name of the mesh instead of the filename */
 			if(subname && *subname) {
@@ -242,10 +244,11 @@ static char *clean_line(char *s)
 
 	end = s;
 	while(*end && *end != '#') ++end;
-	*end = 0;
+	*end-- = 0;
 
-	while(end > s && isspace(*end)) --end;
-	*end = 0;
+	while(end > s && isspace(*end)) {
+		*end-- = 0;
+	}
 
 	return s;
 }
