@@ -7,8 +7,9 @@
 #include "logger.h"
 
 
-#define ZOOM_SPEED	20.0f
+#define ZOOM_SPEED	17.0f
 #define MAX_ZOOM	8.0f
+#define OUT_DUR		0.6f
 
 static int init(void);
 static void cleanup(void);
@@ -60,6 +61,7 @@ static const int num_kmesh = sizeof kmesh / sizeof *kmesh;
 
 
 static float zoom_lin;
+static float stopping;
 
 static unsigned int tex_sph, tex_glyphs;
 
@@ -114,6 +116,7 @@ static void cleanup(void)
 static void start(void)
 {
 	zoom_lin = 0;
+	stopping = 0;
 }
 
 static void stop(void)
@@ -126,7 +129,15 @@ static void update(float dt)
 		screen->next->update(dt);
 	}
 
-	zoom_lin += dt * ZOOM_SPEED;
+	if(stopping > 0.0f) {
+		stopping -= dt;
+		if(stopping <= 0.0f) {
+			pop_screen();
+		}
+		zoom_lin = stopping / OUT_DUR * MAX_ZOOM;
+	} else {
+		zoom_lin += dt * ZOOM_SPEED;
+	}
 }
 
 static void draw(void)
@@ -174,7 +185,7 @@ static void draw(void)
 
 
 	/* draw the controls */
-	glTranslatef((anim - 1.0) * 10.0f, 0, -23);
+	glTranslatef((anim - 1.0) * 16.0f, 0, -23);
 	glRotatef(40, 1, 0, 0);
 
 	glLightfv(GL_LIGHT0, GL_POSITION, lpos);
@@ -230,7 +241,7 @@ static void keyboard(int key, int pressed)
 	switch(key) {
 	case KEY_F1:
 	case 27:
-		pop_screen();
+		stopping = OUT_DUR;
 		break;
 
 	default:
