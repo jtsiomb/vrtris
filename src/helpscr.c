@@ -2,6 +2,7 @@
 #include <imago2.h>
 #include "opengl.h"
 #include "game.h"
+#include "gameinp.h"
 #include "screen.h"
 #include "cmesh.h"
 #include "logger.h"
@@ -123,8 +124,33 @@ static void stop(void)
 {
 }
 
+
+#define CHECK_BUTTON(idx, gbn) \
+	if(joy_bnstate & (1 << idx)) { \
+		ginp_bnstate |= gbn; \
+	}
+
+static void update_input(float dt)
+{
+	ginp_bnstate = 0;
+
+	CHECK_BUTTON(GPAD_A, GINP_HELP);
+	CHECK_BUTTON(GPAD_A, GINP_HELP);
+	CHECK_BUTTON(GPAD_B, GINP_HELP);
+	CHECK_BUTTON(GPAD_X, GINP_HELP);
+	CHECK_BUTTON(GPAD_Y, GINP_HELP);
+
+	update_ginp();
+
+	if(GINP_PRESS(GINP_HELP)) {
+		keyboard(KEY_F1, 1);
+	}
+}
+
 static void update(float dt)
 {
+	update_input(dt);
+
 	if(screen->next) {
 		screen->next->update(dt);
 	}
@@ -193,7 +219,7 @@ static void draw(void)
 	glPushMatrix();
 	glRotatef(cos(t * 0.5) * 2.0f, 1, 0, 0);
 	glRotatef(sin(t * 0.4) * 8.0f, 0, 1, 0);
-	glScalef(0.5, 0.5, 0.5);
+	glScalef(0.6, 0.6, 0.6);
 
 	glEnable(GL_NORMALIZE);
 	glDisable(GL_LIGHTING);

@@ -1,10 +1,8 @@
 #include <assert.h>
-#ifdef BUILD_VR
-#include <goatvr.h>
-#endif
 #include "cgmath/cgmath.h"
 #include "opengl.h"
 #include "game.h"
+#include "vr.h"
 #include "screen.h"
 #include "osd.h"
 #include "opt.h"
@@ -17,9 +15,6 @@
 static void calc_framerate(void);
 static void print_framerate(void);
 
-#ifdef BUILD_VR
-static int should_swap;
-#endif
 static unsigned long framerate;
 
 static float volume;
@@ -47,17 +42,9 @@ int game_init(int argc, char **argv)
 		return -1;
 	}
 
-#ifdef BUILD_VR
-	if(opt.flags & OPT_VR) {
-		if(goatvr_init() == -1) {
-			return -1;
-		}
-		goatvr_set_origin_mode(GOATVR_HEAD);
-
-		goatvr_startvr();
-		should_swap = goatvr_should_swap();
+	if(init_vr() == -1) {
+		return -1;
 	}
-#endif	/* BUILD_VR */
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
@@ -70,11 +57,7 @@ int game_init(int argc, char **argv)
 
 void game_cleanup()
 {
-#ifdef BUILD_VR
-	if(opt.flags & OPT_VR) {
-		goatvr_shutdown();
-	}
-#endif
+	shutdown_vr();
 	cleanup_screens();
 	destroy_sndfx();
 	au_destroy();
@@ -82,6 +65,8 @@ void game_cleanup()
 
 static void update(float dt)
 {
+	update_vr_input();
+
 	screen->update(dt);
 }
 
@@ -92,7 +77,7 @@ void game_display(void)
 	prev_msec = time_msec;
 
 #ifdef BUILD_VR
-	if(opt.flags & OPT_VR) {
+	if(goatvr_invr()) {
 		int i;
 		goatvr_draw_start();
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

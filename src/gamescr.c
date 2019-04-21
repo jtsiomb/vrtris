@@ -3,12 +3,10 @@
 #include <limits.h>
 #include <assert.h>
 #include <imago2.h>
-#ifdef BUILD_VR
-#include <goatvr.h>
-#endif
 #include <drawtext.h>
 #include "opengl.h"
 #include "game.h"
+#include "vr.h"
 #include "screen.h"
 #include "cmesh.h"
 #include "blocks.h"
@@ -96,7 +94,6 @@ static int score, level, lines;
 static int just_spawned;
 
 #ifdef BUILD_VR
-static int vrbn_a = 0, vrbn_b = 1, vrbn_x = 4;
 static float vrscale = 40.0f;
 #endif
 
@@ -184,13 +181,6 @@ static void start(void)
 
 #ifdef BUILD_VR
 	if(goatvr_invr()) {
-		int bn = goatvr_lookup_button("A");
-		if(bn >= 0) vrbn_a = bn;
-		bn = goatvr_lookup_button("B");
-		if(bn >= 0) vrbn_b = bn;
-		bn = goatvr_lookup_button("X");
-		if(bn >= 0) vrbn_x = bn;
-
 		/* switch to VR-optimized camera parameters */
 		cam_theta = 0;
 		cam_phi = -2.5;
@@ -225,41 +215,7 @@ static void stop(void)
 static void update_input(float dtsec)
 {
 	unsigned int bnmask;
-#ifdef BUILD_VR
-	int num_vr_sticks;
-	float orig_joy_axis[3];
-	unsigned int orig_joy_bnstate = UINT_MAX;
-
-	if(goatvr_invr() && (num_vr_sticks = goatvr_num_sticks()) > 0) {
-		float p[2];
-
-		memcpy(orig_joy_axis, joy_axis, sizeof orig_joy_axis);
-		orig_joy_bnstate = joy_bnstate;
-
-		goatvr_stick_pos(0, p);
-		p[1] *= 0.65;	/* drops harder to trigger accidentally */
-
-		if(fabs(p[0]) > fabs(joy_axis[GPAD_LSTICK_X])) {
-			joy_axis[GPAD_LSTICK_X] = p[0];
-		}
-		if(fabs(p[1]) > fabs(joy_axis[GPAD_LSTICK_Y])) {
-			joy_axis[GPAD_LSTICK_Y] = -p[1];
-		}
-
-		if(goatvr_button_state(vrbn_a)) {
-			joy_bnstate |= 1 << GPAD_A;
-		}
-		if(goatvr_button_state(vrbn_b)) {
-			joy_bnstate |= 1 << GPAD_B;
-		}
-		if(goatvr_button_state(vrbn_x)) {
-			joy_bnstate |= 1 << GPAD_START;
-		}
-		if(goatvr_action(0, GOATVR_ACTION_TRIGGER) || goatvr_action(1, GOATVR_ACTION_TRIGGER)) {
-			joy_bnstate |= 1 << GPAD_UP;
-		}
-	}
-#endif	/* BUILD_VR */
+	float yval;
 
 	ginp_bnstate = 0;
 
@@ -282,19 +238,25 @@ static void update_input(float dtsec)
 		ginp_bnstate |= GINP_LEFT;
 	}
 
-	if(joy_axis[GPAD_LSTICK_Y] >= JTHRES) {
+	/* make it harder to accidentally drop */
+	yval = joy_axis[GPAD_LSTICK_Y] * 0.65f;
+	if(yval >= JTHRES) {
 		ginp_bnstate |= GINP_DOWN;
-	} else if(joy_axis[GPAD_LSTICK_Y] <= -JTHRES) {
-		ginp_bnstate |= GINP_UP;
+	} else if(yval <= -JTHRES) {
+		ginp_bnstate |= GINP_DROP;
 	}
 
 	CHECK_BUTTON(GPAD_LEFT, GINP_LEFT);
 	CHECK_BUTTON(GPAD_RIGHT, GINP_RIGHT);
-	CHECK_BUTTON(GPAD_UP, GINP_UP);
+	CHECK_BUTTON(GPAD_UP, GINP_DROP);
 	CHECK_BUTTON(GPAD_DOWN, GINP_DOWN);
 	CHECK_BUTTON(GPAD_A, GINP_ROTATE);
 	CHECK_BUTTON(GPAD_B, GINP_ROTATE);
 	CHECK_BUTTON(GPAD_START, GINP_PAUSE);
+	CHECK_BUTTON(GPAD_X, GINP_PAUSE);
+	CHECK_BUTTON(GPAD_Y, GINP_HELP);
+	CHECK_BUTTON(GPAD_L, GINP_DROP);
+	CHECK_BUTTON(GPAD_R, GINP_DROP);
 
 	update_ginp();
 
@@ -305,13 +267,6 @@ static void update_input(float dtsec)
 		}
 		bnmask <<= 1;
 	}
-
-#ifdef BUILD_VR
-	if(orig_joy_bnstate != UINT_MAX) {
-		memcpy(joy_axis, orig_joy_axis, sizeof joy_axis);
-		joy_bnstate = orig_joy_bnstate;
-	}
-#endif
 }
 
 static void update(float dtsec)
@@ -319,7 +274,12 @@ static void update(float dtsec)
 	static long prev_tick;
 	long dt;
 
-	update_input(dtsec);
+	/* update can be called by the next screen, make sure to handle input
+	 * only when we are the top screen
+	 */
+	if(screen == &game_screen) {
+		update_input(dtsec);
+	}
 
 	if(pause || screen != &game_screen) {
 		prev_tick = time_msec;
@@ -580,7 +540,7 @@ static void game_input(unsigned int inp)
 		}
 		break;
 
-	case GINP_UP:
+	case GINP_DROP:
 		if(!pause && cur_block >= 0) {
 			next_pos[0] = pos[0] + 1;
 			while(!collision(cur_block, next_pos)) {
@@ -602,6 +562,10 @@ static void game_input(unsigned int inp)
 		} else {
 			pause ^= 1;
 		}
+		break;
+
+	case GINP_HELP:
+		push_screen(find_screen("help"));
 		break;
 
 	default:
@@ -632,7 +596,7 @@ static void keyboard(int key, int pressed)
 
 	case '\n':
 	case '\t':
-		game_input(GINP_UP);
+		game_input(GINP_DROP);
 		break;
 
 	case 'p':
@@ -647,7 +611,7 @@ static void keyboard(int key, int pressed)
 		break;
 
 	case KEY_F1:
-		push_screen(find_screen("help"));
+		game_input(GINP_HELP);
 		break;
 
 	default:
