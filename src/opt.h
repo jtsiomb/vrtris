@@ -3,7 +3,8 @@
 
 enum {
 	OPT_VR			= 1,
-	OPT_FULLSCREEN	= 2
+	OPT_FULLSCREEN	= 2,
+	OPT_VSYNC		= 4
 };
 
 struct options {

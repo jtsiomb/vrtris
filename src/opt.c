@@ -13,6 +13,7 @@ enum {
 	OPTCFG_VR,
 #endif
 	OPTCFG_FULLSCREEN,
+	OPTCFG_VSYNC,
 	OPTCFG_WINDOWED,
 	OPTCFG_SCREEN,
 	OPTCFG_HELP
@@ -25,6 +26,7 @@ static struct optcfg_option options[] = {
 	{0, "vr", OPTCFG_VR, "enable VR mode"},
 #endif
 	{'f', "fullscreen", OPTCFG_FULLSCREEN, "run in fullscreen mode"},
+	{0, "vsync", OPTCFG_VSYNC, "vsync"},
 	{'w', "windowed", OPTCFG_WINDOWED, "run in windowed mode"},
 	{0, "screen", OPTCFG_SCREEN, "select starting screen"},
 	{'h', "help", OPTCFG_HELP, "print usage and exit"},
@@ -103,6 +105,14 @@ static int opt_handler(struct optcfg *oc, int optid, void *cls)
 			opt.flags |= OPT_FULLSCREEN;
 		} else {
 			opt.flags &= ~OPT_FULLSCREEN;
+		}
+		break;
+
+	case OPTCFG_VSYNC:
+		if(is_enabled(oc)) {
+			opt.flags |= OPT_VSYNC;
+		} else {
+			opt.flags &= ~OPT_VSYNC;
 		}
 		break;
 

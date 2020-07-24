@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <SDL2/SDL.h>
 #include "game.h"
+#include "opt.h"
 
 static void process_event(SDL_Event *ev);
 static void proc_modkeys();
@@ -79,6 +80,8 @@ int main(int argc, char **argv)
 
 	game_reshape(win_width, win_height);
 	SDL_RaiseWindow(win);
+
+	SDL_GL_SetSwapInterval(opt.flags & OPT_VSYNC ? 1 : 0);
 
 	start_time = SDL_GetTicks();
 
