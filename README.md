@@ -8,7 +8,7 @@ choosing to disable VR at compile-time.
 
 How to run in VR mode
 ---------------------
-To run VRtris in VR, either create a configuration file called `vrtris.conf`
+To run vrtris in VR, either create a configuration file called `vrtris.conf`
 with the line `vr = true`, or run it with the command line argument `-vr`.
 
 Controls

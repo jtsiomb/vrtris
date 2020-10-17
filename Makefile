@@ -1,5 +1,5 @@
 # options -------------------------------------------------
-vrbuild = false
+vrbuild = true
 # ---------------------------------------------------------
 
 src = $(wildcard src/*.c) $(wildcard src/vrtk/*.c) \
