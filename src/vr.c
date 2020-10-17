@@ -22,6 +22,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "opt.h"
 
 #ifdef BUILD_VR
+int should_swap;
+int vrbn_a, vrbn_b, vrbn_x, vrbn_y;
+
 static int vr_initialized;
 
 int init_vr(void)

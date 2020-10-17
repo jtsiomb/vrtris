@@ -29,6 +29,19 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #define DEFSCR	"game"
 
+long time_msec;
+int win_width, win_height;
+int vp_width, vp_height;	/* viewport size differs from win size during VR eye rendering */
+float win_aspect;
+int fb_srgb;
+
+unsigned char keystate[256];
+float joy_axis[3];
+unsigned int joy_bnstate;
+
+float view_matrix[16], proj_matrix[16];
+
+
 static void calc_framerate(void);
 static void print_framerate(void);
 

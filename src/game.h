@@ -18,17 +18,17 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef GAME_H_
 #define GAME_H_
 
-long time_msec;
-int win_width, win_height;
-int vp_width, vp_height;	/* viewport size differs from win size during VR eye rendering */
-float win_aspect;
-int fb_srgb;
+extern long time_msec;
+extern int win_width, win_height;
+extern int vp_width, vp_height;	/* viewport size differs from win size during VR eye rendering */
+extern float win_aspect;
+extern int fb_srgb;
 
-unsigned char keystate[256];
-float joy_axis[3];
-unsigned int joy_bnstate;
+extern unsigned char keystate[256];
+extern float joy_axis[3];
+extern unsigned int joy_bnstate;
 
-float view_matrix[16], proj_matrix[16];
+extern float view_matrix[16], proj_matrix[16];
 
 enum {
 	MOD_SHIFT	= 1,

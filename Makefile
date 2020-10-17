@@ -1,5 +1,5 @@
 # options -------------------------------------------------
-vrbuild = true
+vrbuild = false
 # ---------------------------------------------------------
 
 src = $(wildcard src/*.c) $(wildcard src/vrtk/*.c) \
@@ -23,7 +23,7 @@ dbg = -g
 opt = -O3 -ffast-math
 inc = -Ilibs/vorbis
 
-CFLAGS = $(warn) $(dbg) $(opt) $(inc) `pkg-config --cflags sdl2 freetype2` $(vr_cflags)
+CFLAGS = $(warn) $(dbg) $(opt) $(inc) -fcommon `pkg-config --cflags sdl2 freetype2` $(vr_cflags)
 LDFLAGS = $(libsys) $(libgl) $(libal) `pkg-config --libs sdl2 freetype2` \
 		  $(vr_ldflags) -ljpeg -lpng -lz -lpthread -lm
 

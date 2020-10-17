@@ -21,8 +21,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifdef BUILD_VR
 #include <goatvr.h>
 
-int should_swap;
-int vrbn_a, vrbn_b, vrbn_x, vrbn_y;
+extern int should_swap;
+extern int vrbn_a, vrbn_b, vrbn_x, vrbn_y;
 #endif
 
 int init_vr(void);
