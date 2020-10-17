@@ -20,7 +20,7 @@ endif
 
 warn = -pedantic -Wall -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
 dbg = -g
-opt = -O0
+opt = -O3 -ffast-math
 inc = -Ilibs/vorbis
 
 CFLAGS = $(warn) $(dbg) $(opt) $(inc) `pkg-config --cflags sdl2 freetype2` $(vr_cflags)
