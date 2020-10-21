@@ -84,14 +84,6 @@ indented, and optional dependencies are marked with *(opt)*.
     - gph-math: http://github.com/jtsiomb/gph-math
     - Oculus SDK *(opt)*: See below.
     - Steam OpenVR *(opt)*: https://github.com/ValveSoftware/openvr
-  - libimago: http://github.com/jtsiomb/libimago
-    - libpng: http://libpng.org
-      - zlib: http://www.zlib.net
-    - jpeglib: http://www.ijg.org
-  - libdrawtext: http://github.com/jtsiomb/libdrawtext
-    - freetype: http://www.freetype.org
-  - libogg: http://xiph.org/ogg
-  - libvorbis: http://www.xiph.org/vorbis
 
 Note about the Oculus SDK *optional* dependency of libgoatvr:
 

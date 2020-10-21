@@ -7,6 +7,7 @@ src = $(wildcard src/*.c) $(wildcard src/vrtk/*.c) \
 	  $(wildcard libs/drawtext/*.c) \
 	  $(wildcard libs/ogg/*.c) \
 	  $(wildcard libs/vorbis/*.c) \
+	  $(wildcard libs/zlib/*.c) \
 	  $(wildcard libs/libpng/*.c) \
 	  $(wildcard libs/libjpeg/*.c)
 obj = $(src:.c=.o)
@@ -28,7 +29,7 @@ def = -DNO_FREETYPE
 
 CFLAGS = $(warn) $(dbg) $(opt) -MMD $(def) $(inc) -fcommon `pkg-config --cflags sdl2` $(vr_cflags)
 LDFLAGS = $(libsys) $(libgl) $(libal) `pkg-config --libs sdl2` \
-		  $(vr_ldflags) -lz -lpthread -lm
+		  $(vr_ldflags) -lpthread -lm
 
 sys ?= $(shell uname -s | sed 's/MINGW.*/mingw/')
 
