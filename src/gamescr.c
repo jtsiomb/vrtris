@@ -136,8 +136,14 @@ static const float blkcolor[][4] = {
 
 static int init(void)
 {
+	/*
 	if(!(scorefont = dtx_open_font("data/score.font", 0))) {
 		error_log("failed to open score font\n");
+		return -1;
+	}
+	*/
+	if(!(scorefont = dtx_open_font_glyphmap("data/score54.glyphmap"))) {
+		error_log("failed to open score glyphmap\n");
 		return -1;
 	}
 	dtx_prepare_range(scorefont, FONTSZ, 32, 127);

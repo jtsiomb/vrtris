@@ -215,10 +215,16 @@ static int init(void)
 
 	done_init = 1;
 
+	/*
 	if(!(ui_font = dtx_open_font("data/ui.font", 0))) {
 		fprintf(stderr, "failed to open font: data/ui.font\n");
 		return -1;
 	}
 	dtx_prepare_range(ui_font, ui_font_size, 32, 127);
+	*/
+	if(!(ui_font = dtx_open_font_glyphmap("data/ui16.glyphmap"))) {
+		fprintf(stderr, "failed to open ui glyphmap\n");
+		return -1;
+	}
 	return 0;
 }

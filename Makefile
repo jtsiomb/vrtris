@@ -6,7 +6,9 @@ src = $(wildcard src/*.c) $(wildcard src/vrtk/*.c) \
 	  $(wildcard libs/imago/*.c) \
 	  $(wildcard libs/drawtext/*.c) \
 	  $(wildcard libs/ogg/*.c) \
-	  $(wildcard libs/vorbis/*.c)
+	  $(wildcard libs/vorbis/*.c) \
+	  $(wildcard libs/libpng/*.c) \
+	  $(wildcard libs/libjpeg/*.c)
 obj = $(src:.c=.o)
 dep = $(obj:.o=.d)
 
@@ -21,11 +23,12 @@ endif
 warn = -pedantic -Wall -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
 dbg = -g
 opt = -O3 -ffast-math
-inc = -Ilibs/vorbis
+inc = -Ilibs/libpng -Ilibs/libjpeg -Ilibs/vorbis
+def = -DNO_FREETYPE
 
-CFLAGS = $(warn) $(dbg) $(opt) $(inc) -fcommon `pkg-config --cflags sdl2 freetype2` $(vr_cflags)
-LDFLAGS = $(libsys) $(libgl) $(libal) `pkg-config --libs sdl2 freetype2` \
-		  $(vr_ldflags) -ljpeg -lpng -lz -lpthread -lm
+CFLAGS = $(warn) $(dbg) $(opt) -MMD $(def) $(inc) -fcommon `pkg-config --cflags sdl2` $(vr_cflags)
+LDFLAGS = $(libsys) $(libgl) $(libal) `pkg-config --libs sdl2` \
+		  $(vr_ldflags) -lz -lpthread -lm
 
 sys ?= $(shell uname -s | sed 's/MINGW.*/mingw/')
 
@@ -54,10 +57,6 @@ $(bin): $(obj)
 	$(CC) -o $@ $(obj) $(LDFLAGS)
 
 -include $(dep)
-
-%.d: %.c
-	@echo depfile $@
-	@$(CPP) $(CFLAGS) $< -MM -MT $(@:.d=.o) >$@
 
 %.w32.o: %.c
 	$(CC) -o $@ $(CFLAGS) -c $<
