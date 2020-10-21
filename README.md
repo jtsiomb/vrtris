@@ -1,5 +1,8 @@
 vrtris - tetris in virtual reality
 ==================================
+
+![screenshot](http://nuclear.mutantstargoat.com/sw/games/vrtris/img/vrtris_sm.jpg)
+
 VRtris is a tetris game in VR. Put on your HMD, grab a cool drink (ideally with
 some kind of straw), and enjoy retro puzzle gaming at its finest!
 
