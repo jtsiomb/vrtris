@@ -26,6 +26,7 @@ dbg = -g
 opt = -O3 -ffast-math
 inc = -Ilibs/libpng -Ilibs/libjpeg -Ilibs/vorbis
 def = -DNO_FREETYPE
+data = $(shell tools/datafiles)
 
 CFLAGS = $(warn) $(dbg) $(opt) -MMD $(def) $(inc) -fcommon `pkg-config --cflags sdl2` $(vr_cflags)
 LDFLAGS = $(libsys) $(libgl) $(libal) `pkg-config --libs sdl2` \
@@ -83,14 +84,14 @@ clean:
 cleandep:
 	rm -f $(dep)
 
-.PHONY: install
-install: $(bin) $(data)
-	mkdir -p $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(PREFIX)/share/vrtris
-	cp $(bin) $(DESTDIR)$(PREFIX)/bin/$(bin)
-	cp $(data) $(DESTDIR)$(PREFIX)/share/vrtris
-
-.PHONY: uninstall
-uninstall:
-	rm -f $(DESTDIR)$(PREFIX)/bin/$(bin)
-	for i in $(data); do rm -f $(DESTDIR)$(PREFIX)/share/vrtris/$i; done
-	rmdir $(DESTDIR)$(PREFIX)/share/vrtris
+#.PHONY: install
+#install: $(bin) $(data)
+#	mkdir -p $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(PREFIX)/share/vrtris
+#	cp $(bin) $(DESTDIR)$(PREFIX)/bin/$(bin)
+#	cp $(data) $(DESTDIR)$(PREFIX)/share/vrtris
+#
+#.PHONY: uninstall
+#uninstall:
+#	rm -f $(DESTDIR)$(PREFIX)/bin/$(bin)
+#	for i in $(data); do rm -f $(DESTDIR)$(PREFIX)/share/vrtris/$i; done
+#	rmdir $(DESTDIR)$(PREFIX)/share/vrtris

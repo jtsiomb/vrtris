@@ -1,0 +1,3 @@
+#!/bin/sh
+
+grep -R \"data/ src | sed 's/^.*"\(.*\)".*$/\1/' | sort | uniq
